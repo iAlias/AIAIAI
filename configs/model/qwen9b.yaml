@@ -1,0 +1,19 @@
+# configs/model/qwen9b.yaml
+# Modello base "principale" (~9B target).
+#
+# Nota deviazione: il target dichiarato è una base aperta Qwen ~9B. Alla data del
+# progetto la variante aperta stabile e ampiamente disponibile su HuggingFace più
+# vicina a quella fascia è "Qwen/Qwen2.5-7B" (7.6B parametri). Qwen non distribuisce
+# una "9B" ufficiale nella linea 2.5; usiamo quindi la 7B come base solida, con la
+# stessa famiglia/tokenizer, mantenendo headroom di VRAM per il QLoRA su singola GPU.
+# Per salire verso i ~9B reali si può puntare a "Qwen/Qwen2.5-14B" riducendo batch/seq,
+# ma la 7B resta il default conservativo per V1.
+
+model:
+  name: Qwen/Qwen2.5-7B        # base ~9B target -> variante aperta stabile più vicina
+  dtype: bfloat16              # dtype di calcolo (bf16 su Ampere+; usa float16 se serve)
+  trust_remote_code: true      # alcune feature Qwen richiedono codice del repo
+  quantization:
+    load_in_4bit: true                 # QLoRA: pesi base in 4bit per stare in VRAM
+    bnb_4bit_compute_dtype: bfloat16   # compute in bf16 durante il forward/backward
+    bnb_4bit_quant_type: nf4           # NF4 = qualità migliore rispetto a fp4

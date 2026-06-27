@@ -1,0 +1,112 @@
+# ---------------------------------------------------------------------------
+# .gitignore — Italian LLM project
+# Tiene fuori dal repo: artefatti Python, virtualenv, dati pesanti, pesi modello,
+# log di esperimenti e segreti. Mantiene i placeholder .gitkeep e i campioni *.sample.jsonl.
+# ---------------------------------------------------------------------------
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Test / coverage / type-check -----------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# --- Virtualenv / ambienti ------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# --- Notebook -------------------------------------------------------------
+.ipynb_checkpoints/
+
+# --- IDE / editor ---------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Segreti / configurazione locale --------------------------------------
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# --- Dati pesanti (corpora grezzi e intermedi) ----------------------------
+data/raw/*
+data/interim/*
+# Manteniamo i placeholder e i campioni versionati:
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!**/*.sample.jsonl
+!**/.gitkeep
+
+# --- Output di training / valutazione / inferenza -------------------------
+outputs/*
+!outputs/.gitkeep
+
+# --- Pesi modello e artefatti binari --------------------------------------
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.npz
+*.arrow
+
+# --- Logging esperimenti --------------------------------------------------
+wandb/
+runs/
+mlruns/
+lightning_logs/
+*.log
+
+# --- Cache HuggingFace locale ---------------------------------------------
+.hf_cache/
+hf_home/
+
+# --- Vari -----------------------------------------------------------------
+tmp/
+.tmp/
+*.tmp

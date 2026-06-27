@@ -1,0 +1,65 @@
+# configs/distill/student_3b.yaml
+# Distillazione da teacher (~9B allineato) verso student Qwen2.5-3B.
+# Modalità default "data" (distillazione su risposte del teacher). "logits" è sperimentale.
+
+_base_: ../base.yaml            # eredita project/paths/logging (model lo definiamo sotto)
+
+# Teacher: il nostro modello istruito/allineato (o un teacher esterno via env).
+teacher:
+  name: Qwen/Qwen2.5-7B         # checkpoint/percorso del teacher (~9B target)
+  adapter: outputs/orpo_qwen9b  # adapter allineato da applicare al teacher (opzionale)
+  dtype: bfloat16
+  provider: mock                # mock | openai_compat | hf_local (per distill su dati)
+
+# Student: modello compatto da addestrare.
+student:
+  name: Qwen/Qwen2.5-3B         # coerente con configs/model/student_3b.yaml
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
+
+distill:
+  mode: data                    # data (default, robusto) | logits (sperimentale)
+  temperature: 2.0              # temperatura di softening (usata in modalità logits)
+  alpha: 0.5                    # peso KL vs cross-entropy (modalità logits)
+  max_new_tokens: 512           # lunghezza risposte teacher (modalità data)
+
+train:
+  output_dir: outputs/distill_student_3b
+  epochs: 2
+  lr: 0.0002                    # LoRA LR
+  batch_size: 2
+  grad_accum: 8
+  max_seq_len: 2048
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  logging_steps: 10
+  save_steps: 200
+  gradient_checkpointing: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  # Dataset di distillazione costruito da build_distill_dataset (prompt -> risposta teacher).
+  # Chiavi allineate al consumer italian_llm.distillation.data_distill.build_distill_dataset.
+  seed_path: data/processed/sft_train.jsonl          # task/istruzioni di seed (fallback: banca interna se assente)
+  out_path: data/processed/distill_student.jsonl     # output: dataset distillato (formato SFT/chat)
+  valid_path: data/processed/sft_valid.jsonl
+  samples_per_domain: 3                              # istruzioni per dominio dalla banca interna se non c'è seed_path
+  min_quality: 0.35                                  # soglia quality_score
+  min_italian: 0.5                                   # soglia italian_score
+  format: chat

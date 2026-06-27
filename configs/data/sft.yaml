@@ -1,0 +1,53 @@
+# configs/data/sft.yaml
+# Parametri per costruire il dataset di instruction tuning (SFT) in italiano.
+# Combina dati sintetici (teacher) ed eventuali dati reali, applicando filtri qualità.
+
+sft:
+  output:
+    train_path: data/processed/sft_train.jsonl  # output train (formato SFT JSONL)
+    valid_path: data/processed/sft_valid.jsonl  # output validation
+    valid_ratio: 0.02                           # frazione tenuta per validazione
+    seed: 42
+
+  # Numero di esempi target per dominio (la pipeline campiona/genera fino a questi).
+  target_per_domain: 500
+  max_total: 8000               # tetto complessivo di esempi (conservativo per V1)
+
+  # Mix sintetico: come comporre il dataset finale.
+  synthetic_mix:
+    synthetic_ratio: 0.8        # quota generata dal teacher
+    real_ratio: 0.2             # quota da dati reali se disponibili (altrimenti riassegnata)
+    multi_turn_ratio: 0.25      # quota di esempi multi-turno (dialoghi)
+    hard_ratio: 0.2             # quota di esempi "difficult" per robustezza
+
+  # Distribuzione per dominio (pesi relativi, normalizzati dalla pipeline).
+  domain_weights:
+    general: 1.0
+    qa: 1.2
+    summary: 1.0
+    rewrite: 0.8
+    coding: 1.0
+    email: 0.7
+    helpdesk: 0.8
+    faq: 0.7
+    admin: 0.6
+    dialog: 0.9
+    doc: 0.7
+
+  # Provider del teacher per la sintesi. Default "mock": deterministico, niente rete.
+  # Per usare un teacher reale impostare TEACHER_PROVIDER + le env TEACHER_* (vedi README).
+  teacher:
+    name: mock                  # mock | openai_compat | hf_local
+    max_new_tokens: 512         # lunghezza massima risposta sintetica
+    temperature: 0.7            # creatività nella generazione
+    num_candidates: 1           # >1 abilita majority_rank tra candidati
+    fallback_to_mock: true      # se il teacher reale non è configurato, usa il mock
+
+  filters:
+    italian_threshold: 0.5      # tieni solo risposte sufficientemente italiane
+    quality_min: 0.4            # quality_score minimo per l'esempio
+    min_chars: 20               # lunghezza minima del testo utile
+    max_chars: 20000            # lunghezza massima
+    dedup_near: true            # rimuovi quasi-duplicati tra gli esempi
+    dedup_threshold: 0.9        # soglia near-dedup
+    drop_unsafe: true           # scarta esempi con safety_tag = refuse

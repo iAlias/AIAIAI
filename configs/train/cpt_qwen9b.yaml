@@ -1,0 +1,48 @@
+# configs/train/cpt_qwen9b.yaml
+# Continued Pre-Training (CPT) leggero sul corpus italiano.
+# Default piccoli/conservativi così può partire anche su hardware limitato.
+
+_base_: ../base.yaml            # eredita project/paths/model/logging
+
+# Sovrascrive il modello di base con la config completa ~9B (quantizzazione inclusa).
+model:
+  name: Qwen/Qwen2.5-7B         # coerente con configs/model/qwen9b.yaml
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true          # CPT in QLoRA per stare in VRAM singola GPU
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
+
+train:
+  output_dir: outputs/cpt_qwen9b  # dove salvare checkpoint/adattatori CPT
+  epochs: 1                     # CPT leggero: 1 passata
+  max_steps: 500                # tetto basso di step per avvio rapido (override epochs di fatto)
+  lr: 0.00002                   # 2e-5: learning rate prudente per CPT
+  batch_size: 1                 # micro-batch piccolo (memoria)
+  grad_accum: 16                # accumulo per batch effettivo ~16
+  max_seq_len: 2048             # contesto contenuto per ridurre VRAM
+  warmup_ratio: 0.03            # warmup breve
+  weight_decay: 0.0             # nessun decay per CPT leggero
+  logging_steps: 10             # log frequente ma non rumoroso
+  save_steps: 250               # checkpoint periodici
+  gradient_checkpointing: true  # risparmio memoria a costo di un po' di velocità
+
+# CPT in stile QLoRA: si addestrano adattatori LoRA invece dell'intero modello.
+lora:
+  r: 16                         # rango LoRA
+  alpha: 32                     # scaling
+  dropout: 0.05                 # dropout LoRA
+  target_modules:               # attenzione (q,k,v,o) + MLP (gate,up,down)
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  train_path: data/processed/corpus.jsonl  # corpus pulito per il CPT
+  valid_path: ""                            # validazione opzionale per il CPT
+  format: text                              # corpus a testo grezzo (campo "text")

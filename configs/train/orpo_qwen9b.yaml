@@ -1,0 +1,54 @@
+# configs/train/orpo_qwen9b.yaml
+# Allineamento alle preferenze con ORPO (default) in QLoRA.
+# ORPO non richiede un modello di riferimento separato -> leggero e memoria-friendly.
+# Per usare DPO impostare preference.method: dpo (richiede ref model gestito da TRL).
+
+_base_: ../base.yaml            # eredita project/paths/model/logging
+
+model:
+  name: Qwen/Qwen2.5-7B         # tipicamente si parte dall'SFT come adapter/merge
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true          # QLoRA 4bit
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
+
+train:
+  output_dir: outputs/orpo_qwen9b  # adattatori allineati
+  epochs: 1                     # ORPO leggero: 1 epoca
+  lr: 0.000005                  # 5e-6: LR basso per allineamento stabile
+  batch_size: 1                 # coppie chosen/rejected: micro-batch piccolo
+  grad_accum: 16                # batch effettivo ~16
+  max_seq_len: 1536             # contesto un po' più corto (due risposte per coppia)
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  logging_steps: 10
+  save_steps: 200
+  gradient_checkpointing: true
+
+# Parametri specifici dell'allineamento alle preferenze.
+preference:
+  method: orpo                  # orpo (default) | dpo
+  beta: 0.1                     # forza del termine di preferenza (ORPO lambda / DPO beta)
+  max_prompt_len: 768           # tetto sui token del prompt
+  max_len: 1536                 # tetto totale (prompt + risposta)
+
+# Si parte dall'adapter SFT come punto di partenza.
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  train_path: data/processed/preference_train.jsonl  # coppie di preferenza (JSONL)
+  valid_path: data/processed/preference_valid.jsonl
+  format: preference                                  # {prompt, chosen, rejected, meta}

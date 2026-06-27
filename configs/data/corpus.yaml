@@ -1,0 +1,64 @@
+# configs/data/corpus.yaml
+# Parametri per la costruzione del corpus testuale italiano (pulizia + filtri).
+# Usato dalle pipeline di preparazione dati e dal continued pretraining (CPT).
+
+corpus:
+  # Sorgenti del corpus. In assenza di rete/dati reali, le pipeline generano un
+  # fallback sintetico locale (vedi italian_llm.data.synthetic) così tutto resta runnable.
+  sources:
+    - name: wiki_it
+      type: huggingface         # dataset HF (caricato lazy)
+      path: wikimedia/wikipedia # config language="20231101.it" gestita dalla pipeline
+      split: train
+      text_field: text
+      weight: 1.0               # peso di campionamento relativo
+      enabled: true
+    - name: oscar_it
+      type: huggingface
+      path: oscar-corpus/OSCAR-2301
+      split: train
+      text_field: text
+      weight: 1.0
+      enabled: false            # richiede accettazione licenza: off di default
+    - name: local_txt
+      type: local               # file di testo locali (uno o più .txt/.jsonl)
+      path: data/raw/local       # directory scandita ricorsivamente
+      text_field: text
+      weight: 1.0
+      enabled: true
+    - name: synthetic_fallback
+      type: synthetic           # generato dal teacher mock se non c'è altro
+      path: ""                  # n/d per sorgente sintetica
+      text_field: text
+      weight: 0.5
+      enabled: true
+
+  filters:
+    min_chars: 200              # scarta documenti troppo corti
+    max_chars: 20000            # tronca/scarta documenti enormi
+    italian_threshold: 0.5      # is_italian: score minimo per tenere il testo
+    quality_min: 0.35           # quality_score minimo (0..1)
+    dedup_exact: true           # rimozione duplicati esatti (hash)
+    dedup_near: true            # rimozione quasi-duplicati (simhash)
+    dedup_threshold: 0.9        # soglia similarità per il near-dedup
+    remove_boilerplate: true    # rimuove footer/cookie/menù ripetuti
+    normalize_unicode: true     # NFC + normalizzazione spazi/virgolette
+
+  # Domini di interesse del prodotto (allineati a SYNTH_PROMPTS).
+  domains:
+    - general
+    - qa
+    - summary
+    - rewrite
+    - coding
+    - email
+    - helpdesk
+    - faq
+    - admin
+    - dialog
+    - doc
+
+  output:
+    processed_path: data/processed/corpus.jsonl  # corpus pulito in JSONL
+    shard_size: 50000           # righe per shard quando si scrive a blocchi
+    seed: 42                    # seme per shuffle/campionamento

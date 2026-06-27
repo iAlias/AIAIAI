@@ -1,0 +1,12 @@
+# configs/model/student_3b.yaml
+# Modello "student" per la distillazione: Qwen2.5-3B (stessa famiglia del teacher).
+# Più leggero, adatto a serving economico e a girare anche con poca VRAM.
+
+model:
+  name: Qwen/Qwen2.5-3B        # student compatto della stessa famiglia
+  dtype: bfloat16              # dtype di calcolo
+  trust_remote_code: true      # coerente con la famiglia Qwen
+  quantization:
+    load_in_4bit: true                 # 4bit per fine-tuning/distill su singola GPU
+    bnb_4bit_compute_dtype: bfloat16   # compute bf16
+    bnb_4bit_quant_type: nf4           # NF4

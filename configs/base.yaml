@@ -1,0 +1,22 @@
+# configs/base.yaml
+# Configurazione di base condivisa da tutti i config di training via "_base_".
+# Contiene impostazioni di progetto, percorsi, modello di default e logging.
+
+project:
+  name: italian-llm            # nome del progetto
+  seed: 42                     # seme globale per riproducibilità
+  output_root: outputs         # cartella radice per checkpoint/artefatti
+
+paths:
+  data_dir: data/raw           # dati grezzi (corpora scaricati/sintetici)
+  processed_dir: data/processed # dati puliti/pronti per il training
+  eval_dir: data/eval          # set di valutazione
+
+model:
+  # Modello di default usato se non sovrascritto da configs/model/*.yaml.
+  # Qwen2.5-7B è la variante aperta stabile più vicina al target ~9B (vedi qwen9b.yaml).
+  name: Qwen/Qwen2.5-7B
+  dtype: bfloat16              # precisione di calcolo preferita su GPU moderne
+
+logging:
+  level: INFO                  # livello di log di default (DEBUG/INFO/WARNING/ERROR)

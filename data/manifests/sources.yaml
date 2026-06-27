@@ -1,0 +1,160 @@
+# Fonti dati italiane open intese per il progetto Italian LLM.
+#
+# Questo file e un MANIFESTO di fonti previste, non un download automatico.
+# Lo script di preparazione dati (scripts/prepare_data.py / italian_llm.data.*)
+# tenta di scaricare queste fonti quando disponibili; se l'accesso non e
+# possibile (rete assente, dataset non reperibile, licenza non accettata,
+# nessuna GPU/credenziali), ricade in modo trasparente sulla generazione
+# SINTETICA tramite italian_llm.data.synthetic (MockTeacher di default).
+# In questo modo la pipeline e sempre eseguibile, anche offline su questo host.
+#
+# Campi per ogni fonte:
+#   name     : nome leggibile della fonte
+#   hf_id    : identificatore HuggingFace (oppure null se solo URL)
+#   url      : pagina/URL di riferimento (oppure null)
+#   license  : licenza dichiarata (verificare sempre prima dell'uso)
+#   domain   : dominio prevalente, coerente con i domini del progetto
+#   stage    : fase di training prevista (cpt | sft | preference | eval)
+#   notes    : note pratiche su contenuto, qualita, lingua, caveat
+
+fallback:
+  enabled: true
+  provider: synthetic
+  teacher: mock
+  note: >-
+    Se una fonte non e scaricabile, la pipeline genera dati sintetici italiani
+    con italian_llm.data.synthetic.get_teacher(). Nessuna dipendenza di rete o
+    GPU e richiesta per ottenere un dataset minimo valido.
+
+defaults:
+  language: it
+  min_italian_score: 0.5
+  dedup: true
+
+sources:
+  # ---- Corpora per il Continued Pre-Training (testo grezzo italiano) ----
+  - name: OSCAR 2301 (sottoinsieme italiano)
+    hf_id: oscar-corpus/OSCAR-2301
+    url: https://huggingface.co/datasets/oscar-corpus/OSCAR-2301
+    license: CC0 / varie (richiede accettazione e attribuzione delle fonti web)
+    domain: doc
+    stage: cpt
+    notes: >-
+      Web crawl multilingue di grandi dimensioni; usare solo lo split 'it' con
+      forte filtraggio qualita e deduplica. Accesso gated su HuggingFace.
+
+  - name: Wikipedia italiana
+    hf_id: wikimedia/wikipedia
+    url: https://huggingface.co/datasets/wikimedia/wikipedia
+    license: CC BY-SA 4.0
+    domain: doc
+    stage: cpt
+    notes: >-
+      Config '20231101.it'. Ottima qualita linguistica, utile per conoscenza
+      enciclopedica e registro formale. Rispettare l'attribuzione CC BY-SA.
+
+  - name: Italian C4 (mC4 it)
+    hf_id: gsarti/clean_mc4_it
+    url: https://huggingface.co/datasets/gsarti/clean_mc4_it
+    license: ODC-BY 1.0
+    domain: doc
+    stage: cpt
+    notes: >-
+      Versione ripulita di mC4 per l'italiano, comoda per il CPT. Applicare
+      comunque filtri di qualita e rimozione boilerplate.
+
+  - name: Project Gutenberg (opere in italiano)
+    hf_id: null
+    url: https://www.gutenberg.org/browse/languages/it
+    license: Public Domain (Gutenberg License)
+    domain: doc
+    stage: cpt
+    notes: >-
+      Testi letterari di pubblico dominio. Utili per ricchezza lessicale;
+      attenzione all'italiano arcaico, bilanciare con testi moderni.
+
+  # ---- Dataset per Supervised Fine-Tuning (istruzioni in italiano) ----
+  - name: Alpaca tradotto in italiano
+    hf_id: efederici/alpaca-vs-alpaca-olmo-mix
+    url: https://huggingface.co/datasets/efederici/alpaca-vs-alpaca-olmo-mix
+    license: CC BY-NC 4.0
+    domain: qa
+    stage: sft
+    notes: >-
+      Istruzioni stile Alpaca; verificare la licenza non commerciale prima
+      dell'uso in produzione. Buon punto di partenza per il formato istruttivo.
+
+  - name: Dolly 15k italiano
+    hf_id: AlpacaItalia/databricks-dolly-15k-it
+    url: https://huggingface.co/datasets/AlpacaItalia/databricks-dolly-15k-it
+    license: CC BY-SA 3.0
+    domain: qa
+    stage: sft
+    notes: >-
+      Traduzione del dataset Dolly: QA, brainstorming, summarization, scrittura.
+      Controllare la qualita delle traduzioni automatiche prima del training.
+
+  - name: OASST1 (messaggi in italiano)
+    hf_id: OpenAssistant/oasst1
+    url: https://huggingface.co/datasets/OpenAssistant/oasst1
+    license: Apache-2.0
+    domain: dialog
+    stage: sft
+    notes: >-
+      Conversazioni multi-turno con valutazioni umane; filtrare per lang='it'.
+      Ottimo per dialoghi e tono assistente. Include anche segnali di preferenza.
+
+  - name: SQuAD-it
+    hf_id: squad_it
+    url: https://huggingface.co/datasets/squad_it
+    license: CC BY 4.0
+    domain: qa
+    stage: sft
+    notes: >-
+      Question answering estrattivo in italiano; utile per aderenza alla
+      domanda e risposte ancorate al contesto.
+
+  # ---- Dataset di preferenza (allineamento ORPO/DPO) ----
+  - name: UltraFeedback (binarized)
+    hf_id: HuggingFaceH4/ultrafeedback_binarized
+    url: https://huggingface.co/datasets/HuggingFaceH4/ultrafeedback_binarized
+    license: MIT
+    domain: qa
+    stage: preference
+    notes: >-
+      Coppie chosen/rejected in inglese: usare come schema di riferimento e/o
+      tradurre un sottoinsieme. Per l'italiano preferire coppie generate dai
+      teacher (concise+dirette vs verbose/over-refusing).
+
+  - name: OASST preferenze (rank)
+    hf_id: OpenAssistant/oasst1
+    url: https://huggingface.co/datasets/OpenAssistant/oasst1
+    license: Apache-2.0
+    domain: dialog
+    stage: preference
+    notes: >-
+      Dai rank dei messaggi si possono derivare coppie di preferenza per
+      l'italiano. Filtrare per lang='it' e qualita del rank.
+
+  # ---- Risorse per la valutazione ----
+  - name: Eval set italiano interno (hand-written)
+    hf_id: null
+    url: data/eval/eval_it.jsonl
+    license: progetto interno
+    domain: mixed
+    stage: eval
+    notes: >-
+      Set di valutazione scritto a mano: qa, summary, rewrite, coding, email,
+      helpdesk, aderenza alle istruzioni, sonde di over-refusal (richieste
+      lecite difensive/legali/medico-informative) e poche sonde realmente
+      dannose da rifiutare. E la fonte di verita per la valutazione locale.
+
+  - name: XCOPA (italiano)
+    hf_id: xcopa
+    url: https://huggingface.co/datasets/xcopa
+    license: CC BY 4.0
+    domain: qa
+    stage: eval
+    notes: >-
+      Ragionamento causale a scelta multipla; usare il config 'it' come
+      benchmark aggiuntivo di comprensione.

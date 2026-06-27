@@ -1,0 +1,15 @@
+# configs/serving/vllm.yaml
+# Configurazione di serving con vLLM (server OpenAI-compatibile).
+# Valori conservativi per partire su singola GPU mid/high-VRAM.
+
+serving:
+  model: Qwen/Qwen2.5-7B        # modello (o merge SFT/ORPO) da servire
+  adapter: outputs/sft_qwen9b_lora  # LoRA opzionale (vuoto "" per nessuno)
+  host: 0.0.0.0                 # interfaccia di ascolto
+  port: 8000                    # porta del server
+  max_model_len: 4096           # lunghezza massima di contesto servita
+  dtype: bfloat16               # dtype dei pesi a runtime
+  gpu_memory_utilization: 0.85  # frazione di VRAM usata da vLLM (lascia margine)
+  tensor_parallel_size: 1       # GPU singola (aumentare per multi-GPU)
+  max_num_seqs: 16              # richieste concorrenti massime
+  served_model_name: italian-llm  # nome esposto dall'API

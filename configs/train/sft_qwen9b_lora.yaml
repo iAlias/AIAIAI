@@ -1,0 +1,45 @@
+# configs/train/sft_qwen9b_lora.yaml
+# Supervised Fine-Tuning (SFT) in QLoRA sul modello base ~9B.
+# Default QLoRA conservativi: parte su singola GPU mid/high-VRAM.
+
+_base_: ../base.yaml            # eredita project/paths/model/logging
+
+model:
+  name: Qwen/Qwen2.5-7B         # coerente con configs/model/qwen9b.yaml
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true          # QLoRA 4bit
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
+
+train:
+  output_dir: outputs/sft_qwen9b_lora  # adattatori LoRA risultanti
+  epochs: 3                     # poche epoche su dataset istruzioni
+  lr: 0.0002                    # 2e-4: tipico per LoRA/QLoRA
+  batch_size: 2                 # micro-batch
+  grad_accum: 8                 # batch effettivo ~16
+  max_seq_len: 2048             # lunghezza sequenza
+  warmup_ratio: 0.03            # warmup breve
+  weight_decay: 0.0             # nessun decay (LoRA)
+  logging_steps: 10
+  save_steps: 200
+  gradient_checkpointing: true  # risparmio memoria
+
+lora:
+  r: 16                         # rango LoRA
+  alpha: 32                     # scaling (alpha/r = 2)
+  dropout: 0.05                 # dropout LoRA
+  target_modules:               # qkv + o + MLP
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  train_path: data/processed/sft_train.jsonl  # dataset SFT (formato messages)
+  valid_path: data/processed/sft_valid.jsonl  # validazione SFT
+  format: chat                                 # esempi conversazionali (messages[])

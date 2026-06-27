@@ -1,0 +1,43 @@
+# ===========================================================================
+# requirements.txt — Italian LLM
+# ---------------------------------------------------------------------------
+# NOTA: le dipendenze "pesanti" (torch, transformers, vllm, ecc.) sono OPZIONALI
+# per l'uso STATICO del repo. I moduli puri (config, logging_utils, data/prompts,
+# data/schema, data/cleaning, safety/policy) importano coi soli stdlib + PyYAML.
+# Installa il blocco che ti serve. Le versioni sono "pinned-ish" (>=) su release
+# moderne; per Linux + CUDA usa l'indice ufficiale PyTorch per la build cu12x.
+# ===========================================================================
+
+# --- core (sempre necessario, leggero) -------------------------------------
+pyyaml>=6.0.1
+numpy>=1.26,<2.2
+tqdm>=4.66
+requests>=2.32
+pydantic>=2.7
+
+# --- training (PEFT/QLoRA, CPT, SFT, preferenze, distillazione) ------------
+# Su Linux+CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.3
+transformers>=4.44
+datasets>=2.20
+tokenizers>=0.19
+peft>=0.12
+accelerate>=0.33
+trl>=0.9
+bitsandbytes>=0.43        # quantizzazione 4bit (QLoRA); solo Linux/CUDA
+deepspeed>=0.14           # ZeRO offload opzionale per il base ~9B
+sentencepiece>=0.2
+
+# --- serving (inferenza ad alto throughput) --------------------------------
+vllm>=0.5                 # solo Linux/CUDA; fallback HF transformers nel serving
+
+# --- eval (metriche testo + lingua) ----------------------------------------
+evaluate>=0.4
+sacrebleu>=2.4
+rouge-score>=0.1.2
+langdetect>=1.0.9         # rilevamento lingua; fallback euristico stopword italiane
+
+# --- dev (lint, format, test) ----------------------------------------------
+pytest>=8.0
+ruff>=0.5
+black>=24.0

@@ -1,0 +1,26 @@
+# configs/eval/eval.yaml
+# Configurazione della valutazione. Le metriche elencate corrispondono a
+# italian_llm.evaluation.metrics (il runner le calcola sulle predizioni del modello).
+
+eval:
+  model_path: Qwen/Qwen2.5-7B         # modello base o checkpoint da valutare
+  adapter: outputs/sft_qwen9b_lora    # adapter LoRA da applicare (vuoto "" per nessuno)
+  eval_set: data/eval/eval_it.jsonl   # set di valutazione (formato messages/prompt+ref)
+  batch_size: 4                       # batch di generazione
+  max_new_tokens: 512                 # lunghezza massima risposta generata
+  temperature: 0.0                    # greedy per valutazione riproducibile
+  seed: 42
+
+  # Metriche da calcolare (devono esistere in italian_llm.evaluation.metrics).
+  metrics:
+    - instruction_adherence           # aderenza all'istruzione
+    - verbosity_ratio                 # rapporto di verbosità pred/ref
+    - italianity_score                # quanto è "italiana" l'uscita
+    - refusal_rate                    # tasso di rifiuti
+    - over_refusal_rate               # rifiuti su richieste lecite (da minimizzare)
+    - rouge_l                         # overlap con riferimento
+    - coding_passk                    # pass@k per task di coding
+
+  output:
+    report_path: outputs/eval/report.json   # report aggregato JSON
+    predictions_path: outputs/eval/preds.jsonl  # predizioni per ispezione
