@@ -1,0 +1,14 @@
+# Base coding model. Default = Qwen2.5-Coder-1.5B-Instruct: forte sul codice e
+# abbastanza piccolo da girare veloce su CPU una volta quantizzato in GGUF.
+# Per piu' capacita' (piu' lento su CPU) usa Qwen/Qwen2.5-Coder-3B-Instruct.
+# La quantizzazione 4bit (bitsandbytes) serve SOLO al fine-tuning su GPU; in
+# locale il modello gira come GGUF via Ollama (vedi docs/coding-model.md).
+
+model:
+  name: Qwen/Qwen2.5-Coder-1.5B-Instruct
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
