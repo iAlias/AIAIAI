@@ -28,7 +28,8 @@ def run_python(program: str, timeout: float = 8.0) -> dict:
                 [sys.executable, path],
                 cwd=workdir,
                 capture_output=True,
-                text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired:
