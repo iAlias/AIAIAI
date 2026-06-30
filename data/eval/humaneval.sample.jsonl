@@ -1,0 +1,2 @@
+{"task_id": "sample/0", "prompt": "def add(a, b):\n    \"\"\"Return the sum of a and b.\"\"\"\n", "entry_point": "add", "test": "def check(candidate):\n    assert candidate(1, 2) == 3\n    assert candidate(-1, 1) == 0\n"}
+{"task_id": "sample/1", "prompt": "def is_even(n):\n    \"\"\"Return True if n is even.\"\"\"\n", "entry_point": "is_even", "test": "def check(candidate):\n    assert candidate(2) is True\n    assert candidate(3) is False\n"}
