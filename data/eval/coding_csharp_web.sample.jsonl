@@ -1,0 +1,4 @@
+{"id": "cs/0", "domain": "csharp", "prompt": "In C#, scrivi un metodo che inverte una stringa.", "reference": "public static string Reverse(string s){var a=s.ToCharArray();Array.Reverse(a);return new string(a);}"}
+{"id": "js/0", "domain": "javascript", "prompt": "In JavaScript, scrivi una funzione che rimuove i duplicati da un array.", "reference": "const unique = arr => [...new Set(arr)];"}
+{"id": "css/0", "domain": "css", "prompt": "Scrivi il CSS per centrare un div sia orizzontalmente che verticalmente con flexbox.", "reference": ".parent{display:flex;justify-content:center;align-items:center;}"}
+{"id": "html/0", "domain": "html", "prompt": "Scrivi un form HTML accessibile con un campo email e un bottone di invio.", "reference": "<form><label for=\"e\">Email</label><input id=\"e\" type=\"email\" required><button type=\"submit\">Invia</button></form>"}
