@@ -47,7 +47,7 @@
 
 ## Phase A — Run a strong coder locally (Blocco 1)
 
-### Task A1: Coding model config
+### Task 1: Coding model config
 
 **Files:**
 - Create: `configs/model/qwen_coder.yaml`
@@ -113,7 +113,7 @@ git commit -m "feat: add Qwen2.5-Coder model config"
 
 ---
 
-### Task A2: Coding system prompt
+### Task 2: Coding system prompt
 
 **Files:**
 - Modify: `src/italian_llm/data/prompts.py`
@@ -182,7 +182,7 @@ git commit -m "feat: add coding system prompt"
 
 ---
 
-### Task A3: Ollama export with coding system prompt
+### Task 3: Ollama export with coding system prompt
 
 **Files:**
 - Create: `scripts/export_ollama_coding.py`
@@ -310,7 +310,7 @@ git commit -m "feat: Ollama export with coding system prompt"
 
 ## Phase B — Real coding eval (Blocco 2)
 
-### Task B1: Sandboxed code executor
+### Task 4: Sandboxed code executor
 
 **Files:**
 - Create: `src/italian_llm/evaluation/code_exec.py`
@@ -407,7 +407,7 @@ git commit -m "feat: sandboxed subprocess code executor"
 
 ---
 
-### Task B2: Code-eval harness (load, extract, build, pass@k)
+### Task 5: Code-eval harness (load, extract, build, pass@k)
 
 **Files:**
 - Create: `src/italian_llm/evaluation/code_eval.py`
@@ -415,7 +415,7 @@ git commit -m "feat: sandboxed subprocess code executor"
 - Test: `tests/test_code_eval.py`
 
 **Interfaces:**
-- Consumes: `run_python` from Task B1.
+- Consumes: `run_python` from Task 4.
 - Produces:
   - `extract_code(raw: str) -> str` — strips markdown fences, returns code body.
   - `build_program(problem: dict, completion: str) -> str` — `problem["prompt"] + completion + "\n" + problem["test"] + f"\ncheck({problem['entry_point']})\n"`.
@@ -556,7 +556,7 @@ git commit -m "feat: executable coding eval harness (pass@1)"
 
 ---
 
-### Task B3: Coding eval CLI + config + qualitative C#/web set
+### Task 6: Coding eval CLI + config + qualitative C#/web set
 
 **Files:**
 - Create: `scripts/run_coding_eval.py`
@@ -714,7 +714,7 @@ git commit -m "feat: coding eval CLI (pass@1 + qualitative set)"
 
 ## Phase C — Optional free fine-tuning (Blocco 3)
 
-### Task C1: Coding SFT dataset builder
+### Task 7: Coding SFT dataset builder
 
 **Files:**
 - Create: `scripts/build_coding_sft.py`
@@ -885,7 +885,7 @@ git commit -m "feat: coding SFT dataset builder"
 
 ---
 
-### Task C2: Coding SFT training config
+### Task 8: Coding SFT training config
 
 **Files:**
 - Create: `configs/train/sft_coder.yaml`
@@ -956,7 +956,7 @@ git commit -m "feat: coding SFT QLoRA train config"
 
 ---
 
-### Task C3: Kaggle QLoRA notebook (artifact)
+### Task 9: Kaggle QLoRA notebook (artifact)
 
 **Files:**
 - Create: `notebooks/kaggle_qlora_coder.ipynb`
@@ -1026,7 +1026,7 @@ git commit -m "docs: Kaggle free QLoRA notebook for coder"
 
 ## Phase D — Docs & honesty
 
-### Task D1: Coding-model docs + README section
+### Task 10: Coding-model docs + README section
 
 **Files:**
 - Create: `docs/coding-model.md`
@@ -1058,7 +1058,7 @@ git commit -m "docs: coding model usage and honest limits"
 
 ---
 
-### Task D2: Full test + lint gate
+### Task 11: Full test + lint gate
 
 **Files:** none (verification task).
 
@@ -1090,7 +1090,7 @@ git commit -m "chore: lint/format coding pipeline"
 
 These make a small model punch above its weight without a bigger model. All CPU-friendly, local, free. Pure logic is TDD-tested; model-dependent CLIs degrade to MockTeacher offline.
 
-### Task E1: RAG over the local codebase
+### Task 12: RAG over the local codebase
 
 **Files:**
 - Create: `src/italian_llm/rag/__init__.py` (empty)
@@ -1322,7 +1322,7 @@ git commit -m "feat: lightweight BM25 RAG over local codebase"
 
 ---
 
-### Task E2: Self-repair loop (automatic TDD)
+### Task 13: Self-repair loop (automatic TDD)
 
 **Files:**
 - Create: `src/italian_llm/evaluation/self_repair.py`
@@ -1434,7 +1434,7 @@ git commit -m "feat: self-repair loop (generate-test-fix)"
 
 ---
 
-### Task E3: FIM (fill-in-the-middle) autocomplete
+### Task 14: FIM (fill-in-the-middle) autocomplete
 
 **Files:**
 - Create: `src/italian_llm/serving/fim.py`
@@ -1562,7 +1562,7 @@ git commit -m "feat: FIM fill-in-the-middle autocomplete"
 
 ---
 
-### Task E4: Document Phase E in coding docs
+### Task 15: Document Phase E in coding docs
 
 **Files:**
 - Modify: `docs/coding-model.md`
