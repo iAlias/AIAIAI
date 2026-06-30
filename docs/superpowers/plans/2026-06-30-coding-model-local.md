@@ -1086,15 +1086,512 @@ git commit -m "chore: lint/format coding pipeline"
 
 ---
 
+## Phase E — "Genial infrastructure" features
+
+These make a small model punch above its weight without a bigger model. All CPU-friendly, local, free. Pure logic is TDD-tested; model-dependent CLIs degrade to MockTeacher offline.
+
+### Task E1: RAG over the local codebase
+
+**Files:**
+- Create: `src/italian_llm/rag/__init__.py` (empty)
+- Create: `src/italian_llm/rag/code_index.py`
+- Create: `scripts/rag_ask.py`
+- Test: `tests/test_rag.py`
+
+**Interfaces:**
+- Produces:
+  - `chunk_text(path: str, text: str, max_lines: int = 40) -> list[dict]` → list of `{"path","start_line","text"}`.
+  - `index_paths(root: str, exts: tuple = (".cs",".js",".ts",".jsx",".tsx",".html",".css",".py"), max_lines: int = 40) -> list[dict]` — walks `root`, chunks every file with a matching extension.
+  - `CodeIndex` with classmethod `build(chunks: list[dict]) -> "CodeIndex"` and `search(query: str, k: int = 4) -> list[dict]` (BM25 ranking, stdlib only).
+  - `build_context(chunks: list[dict], max_chars: int = 2000) -> str` — formats retrieved chunks as a `# file:line` context block.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_rag.py
+from italian_llm.rag.code_index import chunk_text, CodeIndex, build_context
+
+
+def test_chunk_text_splits_by_lines():
+    text = "\n".join(f"line{i}" for i in range(100))
+    chunks = chunk_text("a.py", text, max_lines=40)
+    assert len(chunks) == 3
+    assert chunks[0]["path"] == "a.py"
+    assert chunks[0]["start_line"] == 1
+    assert chunks[1]["start_line"] == 41
+
+
+def test_bm25_ranks_relevant_chunk_first():
+    chunks = [
+        {"path": "auth.cs", "start_line": 1, "text": "public bool ValidateToken(string jwt) { return true; }"},
+        {"path": "math.cs", "start_line": 1, "text": "public int Add(int a, int b) { return a + b; }"},
+    ]
+    idx = CodeIndex.build(chunks)
+    top = idx.search("come valido un token jwt", k=1)
+    assert top and top[0]["path"] == "auth.cs"
+
+
+def test_build_context_includes_paths_and_caps_size():
+    chunks = [{"path": "a.cs", "start_line": 5, "text": "X" * 50}]
+    ctx = build_context(chunks, max_chars=1000)
+    assert "a.cs:5" in ctx
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python -m pytest tests/test_rag.py -v`
+Expected: FAIL (module missing).
+
+- [ ] **Step 3: Create `src/italian_llm/rag/__init__.py`** (empty file) and `src/italian_llm/rag/code_index.py`
+
+```python
+"""RAG leggero sul codebase locale: chunking + retrieval BM25 (solo stdlib).
+
+Idea: un modello piccolo risponde molto meglio se gli si dà il pezzo GIUSTO del
+TUO codice. Niente dipendenze pesanti: tokenizzazione regex + BM25 in puro Python.
+"""
+
+import math
+import os
+import re
+from collections import Counter
+
+__all__ = ["chunk_text", "index_paths", "CodeIndex", "build_context"]
+
+_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _tokens(text: str) -> list[str]:
+    return [t.lower() for t in _TOKEN_RE.findall(text or "")]
+
+
+def chunk_text(path: str, text: str, max_lines: int = 40) -> list[dict]:
+    """Spezza il testo in chunk di al massimo `max_lines` righe."""
+    lines = (text or "").splitlines()
+    chunks = []
+    for start in range(0, max(len(lines), 1), max_lines):
+        body = "\n".join(lines[start:start + max_lines])
+        if body.strip():
+            chunks.append({"path": path, "start_line": start + 1, "text": body})
+    return chunks
+
+
+def index_paths(root: str, exts: tuple = (".cs", ".js", ".ts", ".jsx", ".tsx",
+                                          ".html", ".css", ".py"),
+                max_lines: int = 40) -> list[dict]:
+    """Indicizza ricorsivamente i file con estensione in `exts` sotto `root`."""
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in
+                       {".git", "node_modules", "__pycache__", "outputs", ".venv"}]
+        for fn in filenames:
+            if os.path.splitext(fn)[1].lower() in exts:
+                full = os.path.join(dirpath, fn)
+                try:
+                    with open(full, "r", encoding="utf-8", errors="ignore") as fh:
+                        out.extend(chunk_text(full, fh.read(), max_lines=max_lines))
+                except OSError:
+                    continue
+    return out
+
+
+class CodeIndex:
+    """Indice BM25 in memoria sui chunk di codice."""
+
+    def __init__(self, chunks, doc_tokens, df, avgdl, k1=1.5, b=0.75):
+        self.chunks = chunks
+        self.doc_tokens = doc_tokens
+        self.df = df
+        self.avgdl = avgdl
+        self.n = len(chunks)
+        self.k1 = k1
+        self.b = b
+
+    @classmethod
+    def build(cls, chunks: list[dict]) -> "CodeIndex":
+        doc_tokens = [_tokens(c["text"]) for c in chunks]
+        df = Counter()
+        for toks in doc_tokens:
+            for term in set(toks):
+                df[term] += 1
+        avgdl = (sum(len(t) for t in doc_tokens) / len(doc_tokens)) if doc_tokens else 0.0
+        return cls(chunks, doc_tokens, df, avgdl)
+
+    def _idf(self, term: str) -> float:
+        n_q = self.df.get(term, 0)
+        if n_q == 0:
+            return 0.0
+        return math.log(1 + (self.n - n_q + 0.5) / (n_q + 0.5))
+
+    def search(self, query: str, k: int = 4) -> list[dict]:
+        q_terms = _tokens(query)
+        scores = []
+        for i, toks in enumerate(self.doc_tokens):
+            if not toks:
+                scores.append((0.0, i))
+                continue
+            tf = Counter(toks)
+            dl = len(toks)
+            s = 0.0
+            for term in q_terms:
+                f = tf.get(term, 0)
+                if f == 0:
+                    continue
+                denom = f + self.k1 * (1 - self.b + self.b * dl / (self.avgdl or 1))
+                s += self._idf(term) * (f * (self.k1 + 1)) / denom
+            scores.append((s, i))
+        scores.sort(key=lambda x: x[0], reverse=True)
+        return [self.chunks[i] for s, i in scores[:k] if s > 0]
+
+
+def build_context(chunks: list[dict], max_chars: int = 2000) -> str:
+    """Formatta i chunk recuperati come blocco di contesto, troncando a max_chars."""
+    parts = []
+    used = 0
+    for c in chunks:
+        header = f"# {c['path']}:{c['start_line']}\n"
+        block = header + c["text"]
+        if used + len(block) > max_chars:
+            break
+        parts.append(block)
+        used += len(block)
+    return "\n\n".join(parts)
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `python -m pytest tests/test_rag.py -v`
+Expected: PASS (3 tests).
+
+- [ ] **Step 5: Create `scripts/rag_ask.py`** (thin CLI: index → retrieve → ask)
+
+```python
+#!/usr/bin/env python
+"""Domanda al coder con contesto RAG dal tuo codebase locale."""
+
+import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+
+import argparse
+
+from italian_llm.rag.code_index import index_paths, CodeIndex, build_context
+from italian_llm.data.prompts import coding_system, build_messages
+from italian_llm.evaluation.runner import _Predictor
+from italian_llm.logging_utils import setup_logging, get_logger
+
+logger = get_logger(__name__)
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description="Chiedi al coder con RAG sul tuo codice.")
+    p.add_argument("--root", default=".", help="Cartella del codebase da indicizzare")
+    p.add_argument("--question", required=True)
+    p.add_argument("--k", type=int, default=4)
+    p.add_argument("--model", default="Qwen/Qwen2.5-Coder-1.5B-Instruct")
+    p.add_argument("--log-level", default="INFO")
+    args = p.parse_args(argv)
+    setup_logging(args.log_level)
+
+    chunks = index_paths(args.root)
+    logger.info("Indicizzati %d chunk da %s", len(chunks), args.root)
+    idx = CodeIndex.build(chunks)
+    hits = idx.search(args.question, k=args.k)
+    context = build_context(hits)
+
+    predictor = _Predictor({"eval": {"model_path": args.model, "adapter": "",
+                                     "max_new_tokens": 512, "temperature": 0.2}})
+    mode = predictor.init()
+    user = (f"Contesto dal codebase:\n{context}\n\nDomanda: {args.question}"
+            if context else args.question)
+    answer = predictor.predict(build_messages(coding_system(), user))
+    print(f"[mode={mode}]\n{answer}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+- [ ] **Step 6: Smoke run + commit**
+
+Run: `python scripts/rag_ask.py --root src --question "come e' strutturata la config?"`
+Expected: prints `[mode=mock]` + a (mock) answer; proves indexing + retrieval + predictor wiring work offline.
+
+```bash
+git add src/italian_llm/rag/ scripts/rag_ask.py tests/test_rag.py
+git commit -m "feat: lightweight BM25 RAG over local codebase"
+```
+
+---
+
+### Task E2: Self-repair loop (automatic TDD)
+
+**Files:**
+- Create: `src/italian_llm/evaluation/self_repair.py`
+- Test: `tests/test_self_repair.py`
+
+**Interfaces:**
+- Consumes: `code_eval.build_program`, `code_eval.extract_code`, `code_exec.run_python`.
+- Produces:
+  - `repair_prompt(problem: dict, last_code: str, error: str) -> str`.
+  - `solve_with_repair(problem: dict, predict_fn, max_attempts: int = 3, timeout: float = 8.0) -> dict` → `{"passed": bool, "attempts": int, "code": str}`. Attempt 1 calls `predict_fn(problem["prompt"])`; on failure, calls `predict_fn(repair_prompt(...))` up to `max_attempts`. `predict_fn(prompt:str)->str` (same contract as `evaluate_coding`).
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_self_repair.py
+from italian_llm.evaluation import self_repair
+
+
+def test_succeeds_after_one_repair():
+    problem = {
+        "prompt": "def add(a, b):\n",
+        "test": "def check(c):\n    assert c(1, 2) == 3\n",
+        "entry_point": "add",
+    }
+    calls = {"n": 0}
+
+    def predict(prompt):
+        calls["n"] += 1
+        return "    return 0\n" if calls["n"] == 1 else "    return a + b\n"
+
+    out = self_repair.solve_with_repair(problem, predict, max_attempts=3)
+    assert out["passed"] is True
+    assert out["attempts"] == 2
+
+
+def test_gives_up_after_max_attempts():
+    problem = {"prompt": "def f():\n", "test": "def check(c):\n    assert c() == 1\n",
+               "entry_point": "f"}
+    out = self_repair.solve_with_repair(problem, lambda p: "    return 0\n", max_attempts=2)
+    assert out["passed"] is False
+    assert out["attempts"] == 2
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python -m pytest tests/test_self_repair.py -v`
+Expected: FAIL (module missing).
+
+- [ ] **Step 3: Create the module**
+
+```python
+"""Loop di auto-riparazione: genera -> esegue test in sandbox -> se fallisce,
+reinietta l'errore e ritenta. Trasforma un modello debole in uno piu' affidabile
+senza cambiare i pesi: piu' intelligenza dalla stessa rete.
+"""
+
+from italian_llm.evaluation.code_eval import build_program, extract_code
+from italian_llm.evaluation.code_exec import run_python
+
+__all__ = ["repair_prompt", "solve_with_repair"]
+
+
+def repair_prompt(problem: dict, last_code: str, error: str) -> str:
+    """Prompt di riparazione che mostra codice fallito + errore e chiede la fix."""
+    return (
+        f"{problem.get('prompt', '')}"
+        f"\n# Il tuo tentativo precedente ha fallito i test.\n"
+        f"# Codice:\n{last_code}\n"
+        f"# Errore:\n{error}\n"
+        f"# Correggi: restituisci solo il corpo della funzione corretto.\n"
+    )
+
+
+def solve_with_repair(problem: dict, predict_fn, max_attempts: int = 3,
+                      timeout: float = 8.0) -> dict:
+    """Tenta fino a max_attempts; ritorna {passed, attempts, code}."""
+    prompt = problem.get("prompt", "")
+    last_code = ""
+    last_error = ""
+    for attempt in range(1, max_attempts + 1):
+        raw = predict_fn(prompt)
+        last_code = extract_code(raw)
+        outcome = run_python(build_program(problem, last_code), timeout=timeout)
+        if outcome["passed"]:
+            return {"passed": True, "attempts": attempt, "code": last_code}
+        last_error = outcome["error"] or "test falliti"
+        prompt = repair_prompt(problem, last_code, last_error)
+    return {"passed": False, "attempts": max_attempts, "code": last_code}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `python -m pytest tests/test_self_repair.py -v`
+Expected: PASS (2 tests).
+
+- [ ] **Step 5: Wire an optional `--repair` flag into `scripts/run_coding_eval.py`**
+
+In `scripts/run_coding_eval.py`, add `p.add_argument("--repair", type=int, default=0, help="max tentativi di auto-riparazione (0=off)")`. When `args.repair > 0`, replace the per-problem evaluation with `self_repair.solve_with_repair(prob, predict_fn, max_attempts=args.repair, timeout=timeout)` and build `results` from its `{passed, attempts}`. Import `from italian_llm.evaluation import self_repair`. Keep the non-repair path unchanged.
+
+- [ ] **Step 6: Smoke + commit**
+
+Run: `python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml --repair 3`
+Expected: runs without error (mock mode → still 0.0, but the repair loop executes). 
+
+```bash
+git add src/italian_llm/evaluation/self_repair.py scripts/run_coding_eval.py tests/test_self_repair.py
+git commit -m "feat: self-repair loop (generate-test-fix)"
+```
+
+---
+
+### Task E3: FIM (fill-in-the-middle) autocomplete
+
+**Files:**
+- Create: `src/italian_llm/serving/fim.py`
+- Create: `scripts/fim_complete.py`
+- Test: `tests/test_fim.py`
+
+**Interfaces:**
+- Produces:
+  - `build_fim_prompt(prefix: str, suffix: str) -> str` → `"<|fim_prefix|>" + prefix + "<|fim_suffix|>" + suffix + "<|fim_middle|>"` (Qwen2.5-Coder FIM tokens).
+  - `strip_fim(text: str) -> str` — removes FIM/EOS special tokens and anything after the first one.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_fim.py
+from italian_llm.serving.fim import build_fim_prompt, strip_fim
+
+
+def test_build_fim_prompt_uses_qwen_tokens():
+    p = build_fim_prompt("def add(a, b):\n    return ", "\n\nprint(add(1,2))")
+    assert p == "<|fim_prefix|>def add(a, b):\n    return <|fim_suffix|>\n\nprint(add(1,2))<|fim_middle|>"
+
+
+def test_strip_fim_cuts_at_special_tokens():
+    assert strip_fim("a + b<|endoftext|>garbage") == "a + b"
+    assert strip_fim("x<|fim_pad|>") == "x"
+    assert strip_fim("clean") == "clean"
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python -m pytest tests/test_fim.py -v`
+Expected: FAIL (module missing).
+
+- [ ] **Step 3: Create the module**
+
+```python
+"""Fill-in-the-middle (FIM) per Qwen2.5-Coder: completamento da editor.
+
+Dai codice prima (prefix) e dopo (suffix) il cursore; il modello riempie il mezzo.
+Feature locale che i chatbot cloud non offrono bene. Qui solo la logica pura dei
+token; la generazione raw vive in scripts/fim_complete.py (transformers lazy).
+"""
+
+import re
+
+__all__ = ["build_fim_prompt", "strip_fim", "FIM_PREFIX", "FIM_SUFFIX", "FIM_MIDDLE"]
+
+FIM_PREFIX = "<|fim_prefix|>"
+FIM_SUFFIX = "<|fim_suffix|>"
+FIM_MIDDLE = "<|fim_middle|>"
+
+_SPECIAL_RE = re.compile(r"<\|(endoftext|fim_pad|fim_prefix|fim_suffix|fim_middle|im_end|im_start)\|>")
+
+
+def build_fim_prompt(prefix: str, suffix: str) -> str:
+    """Prompt FIM nel formato Qwen2.5-Coder."""
+    return f"{FIM_PREFIX}{prefix}{FIM_SUFFIX}{suffix}{FIM_MIDDLE}"
+
+
+def strip_fim(text: str) -> str:
+    """Taglia l'output al primo token speciale e rimuove residui."""
+    if not text:
+        return ""
+    m = _SPECIAL_RE.search(text)
+    if m:
+        text = text[:m.start()]
+    return text
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `python -m pytest tests/test_fim.py -v`
+Expected: PASS (2 tests).
+
+- [ ] **Step 5: Create `scripts/fim_complete.py`** (raw completion; real model on GPU host, clear error offline)
+
+```python
+#!/usr/bin/env python
+"""Completamento FIM: legge prefix e suffix, stampa il 'mezzo' generato.
+
+Richiede transformers + il modello coder (gira dove c'e' il modello). Import lazy.
+"""
+
+import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+
+import argparse
+
+from italian_llm.serving.fim import build_fim_prompt, strip_fim
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description="FIM completion con Qwen2.5-Coder.")
+    p.add_argument("--prefix", required=True, help="Codice prima del cursore")
+    p.add_argument("--suffix", default="", help="Codice dopo il cursore")
+    p.add_argument("--model", default="Qwen/Qwen2.5-Coder-1.5B-Instruct")
+    p.add_argument("--max-new-tokens", type=int, default=128)
+    args = p.parse_args(argv)
+
+    prompt = build_fim_prompt(args.prefix, args.suffix)
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+    except Exception as e:
+        raise SystemExit(f"transformers non disponibile ({e}). Esegui dove c'e' il modello.")
+
+    tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype="auto",
+                                                 trust_remote_code=True)
+    inputs = tok(prompt, return_tensors="pt")
+    out = model.generate(**inputs, max_new_tokens=args.max_new_tokens, do_sample=False)
+    gen = tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=False)
+    print(strip_fim(gen))
+
+
+if __name__ == "__main__":
+    main()
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/italian_llm/serving/fim.py scripts/fim_complete.py tests/test_fim.py
+git commit -m "feat: FIM fill-in-the-middle autocomplete"
+```
+
+---
+
+### Task E4: Document Phase E in coding docs
+
+**Files:**
+- Modify: `docs/coding-model.md`
+
+- [ ] **Step 1: Add three subsections to `docs/coding-model.md`**
+
+1. **RAG sul tuo codice:** `python scripts/rag_ask.py --root <tua/cartella> --question "..."`. Spiega che ancora le risposte al tuo codebase reale.
+2. **Auto-riparazione:** `python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml --repair 3`. Spiega genera→test→fix.
+3. **FIM autocomplete:** `python scripts/fim_complete.py --prefix "..." --suffix "..."`. Nota che gira dove c'e' il modello (GPU host o CPU con modello scaricato).
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add docs/coding-model.md
+git commit -m "docs: document RAG, self-repair, FIM"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
 - Blocco 1 (run locally) → Tasks A1–A3, D1. ✓
 - Blocco 2 (data + eval pass@k, sandboxed) → Tasks B1–B3. ✓ (Honest deviation: pass@k is Python-executable HumanEval-format; C#/JS/HTML/CSS handled by a qualitative set, since C#/CSS/HTML aren't executable by the Python sandbox. JS execution via node is left as a future extension and noted in docs.)
 - Blocco 3 (optional free LoRA) → Tasks C1–C3. ✓
-- Honest limits in docs → Task D1. ✓
+- Phase E genial-infra features (RAG, self-repair, FIM) → Tasks E1–E4. ✓
+- Honest limits in docs → Task D1, E4. ✓
 - €0 / no secrets/weights committed → Global Constraints + D1. ✓
-- Sandboxed untrusted execution → Task B1 + constraint. ✓
+- Sandboxed untrusted execution → Task B1 + constraint; reused by E2. ✓
 
 **Placeholder scan:** No TBD/TODO in code steps; every code step shows full content. Two explicit "verify against existing file" notes (Task C2 config key names, Task C3 notebook signatures) are real verification steps, not placeholders — the implementer runs the given inspect command first.
 
