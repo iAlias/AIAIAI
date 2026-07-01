@@ -1,0 +1,36 @@
+# configs/train/sft_coder.yaml
+# SFT QLoRA del coder su dati coding. Da lanciare su GPU gratis (Kaggle/Colab),
+# NON su questo PC. Mirror delle chiavi di sft_qwen9b_lora.yaml.
+_base_: ../base.yaml
+
+model:
+  name: Qwen/Qwen2.5-Coder-1.5B-Instruct
+  dtype: bfloat16
+  trust_remote_code: true
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: bfloat16
+    bnb_4bit_quant_type: nf4
+
+train:
+  output_dir: outputs/sft_coder_lora
+  epochs: 1
+  lr: 0.0002
+  batch_size: 1
+  grad_accum: 16
+  max_seq_len: 2048
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  logging_steps: 10
+  save_steps: 200
+  gradient_checkpointing: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+data:
+  train_path: data/processed/coding_sft.jsonl
+  format: chat

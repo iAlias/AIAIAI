@@ -47,9 +47,11 @@ def evaluate_coding(problems, predict_fn, timeout: float = 8.0) -> list[dict]:
         completion = extract_code(raw)
         program = build_program(prob, completion)
         outcome = run_python(program, timeout=timeout)
-        results.append({
-            "task_id": prob.get("task_id"),
-            "passed": bool(outcome["passed"]),
-            "error": outcome["error"],
-        })
+        results.append(
+            {
+                "task_id": prob.get("task_id"),
+                "passed": bool(outcome["passed"]),
+                "error": outcome["error"],
+            }
+        )
     return results

@@ -2,7 +2,10 @@
 """Genera un Modelfile Ollama per un GGUF, con system prompt di coding, e (se
 ollama c'e') registra il modello."""
 
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import argparse
 import shutil
@@ -11,14 +14,15 @@ import subprocess
 from italian_llm.data.prompts import coding_system
 
 _TEMPLATE = (
-    '{{ if .System }}<|im_start|>system\n{{ .System }}<|im_end|>\n{{ end }}'
-    '{{ if .Prompt }}<|im_start|>user\n{{ .Prompt }}<|im_end|>\n{{ end }}'
-    '<|im_start|>assistant\n{{ .Response }}<|im_end|>\n'
+    "{{ if .System }}<|im_start|>system\n{{ .System }}<|im_end|>\n{{ end }}"
+    "{{ if .Prompt }}<|im_start|>user\n{{ .Prompt }}<|im_end|>\n{{ end }}"
+    "<|im_start|>assistant\n{{ .Response }}<|im_end|>\n"
 )
 
 
-def build_modelfile(gguf_path: str, system: str, *, temperature: float = 0.2,
-                    top_p: float = 0.9) -> str:
+def build_modelfile(
+    gguf_path: str, system: str, *, temperature: float = 0.2, top_p: float = 0.9
+) -> str:
     """Testo del Modelfile Ollama (template ChatML Qwen + system + sampling)."""
     sys_escaped = system.replace('"', '\\"')
     return (
@@ -36,8 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Esporta un GGUF coder in Ollama.")
     p.add_argument("--gguf", required=True, help="Percorso del file .gguf")
     p.add_argument("--name", default="coder-local", help="Nome del modello Ollama")
-    p.add_argument("--languages", default="C#,JavaScript,HTML,CSS",
-                   help="Linguaggi principali (CSV) per il system prompt")
+    p.add_argument(
+        "--languages",
+        default="C#,JavaScript,HTML,CSS",
+        help="Linguaggi principali (CSV) per il system prompt",
+    )
     p.add_argument("--temperature", type=float, default=0.2)
     return p
 

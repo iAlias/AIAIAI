@@ -15,17 +15,18 @@ moralizza** e **non rifiuta richieste lecite** (riduzione dell'over-refusal).
 ## Indice
 
 1. [Panoramica](#panoramica)
-2. [Le due tracce: V1 pragmatica e V2 R&D](#le-due-tracce-v1-pragmatica-e-v2-rd)
-3. [Struttura del repository](#struttura-del-repository)
-4. [Quick start](#quick-start)
-5. [Profili hardware](#profili-hardware)
-6. [La pipeline in 7 step](#la-pipeline-in-7-step)
-7. [Cosa è pronto subito vs cosa è simulato ma cablato](#cosa-è-pronto-subito-vs-cosa-è-simulato-ma-cablato)
-8. [Mock teacher e fallback sintetico](#mock-teacher-e-fallback-sintetico)
-9. [Documentazione](#documentazione)
-10. [Roadmap a 30 giorni (sintesi)](#roadmap-a-30-giorni-sintesi)
-11. [Checklist finale](#checklist-finale)
-12. [Licenza](#licenza)
+2. [Assistente di programmazione locale](#assistente-di-programmazione-locale)
+3. [Le due tracce: V1 pragmatica e V2 R&D](#le-due-tracce-v1-pragmatica-e-v2-rd)
+4. [Struttura del repository](#struttura-del-repository)
+5. [Quick start](#quick-start)
+6. [Profili hardware](#profili-hardware)
+7. [La pipeline in 7 step](#la-pipeline-in-7-step)
+8. [Cosa è pronto subito vs cosa è simulato ma cablato](#cosa-è-pronto-subito-vs-cosa-è-simulato-ma-cablato)
+9. [Mock teacher e fallback sintetico](#mock-teacher-e-fallback-sintetico)
+10. [Documentazione](#documentazione)
+11. [Roadmap a 30 giorni (sintesi)](#roadmap-a-30-giorni-sintesi)
+12. [Checklist finale](#checklist-finale)
+13. [Licenza](#licenza)
 
 ---
 
@@ -56,6 +57,40 @@ importa con **solo stdlib + PyYAML**. Le dipendenze pesanti (`torch`,
 `transformers`, `peft`, `trl`, `datasets`, `bitsandbytes`, `accelerate`, `vllm`)
 sono importate **lazy**, dentro le funzioni: il repo resta validabile su questo host
 Windows senza GPU.
+
+---
+
+## Assistente di programmazione locale
+
+Il repository include anche uno **strumento specializzato per il coding locale**: un assistente basato su `Qwen2.5-Coder` quantizzato, che gira in **locale senza GPU**, specifico su **C#, JavaScript, HTML, CSS** (web stack).
+
+**Cosa fa:**
+- Gira veloce su hardware modesto (Intel i7-10510U, 4 core, 32 GB RAM).
+- È forte su snippet, completamento, Q&A dello stack.
+- Costa **€0** (sia da costruire sia da eseguire).
+- È privato e personalizzabile.
+
+**Cosa non fa:**
+- Non è un sostituto di Claude Opus 4.8 o modelli frontier.
+- Su coding agentico complesso, multi-file, debugging di sistemi — il gap è enorme.
+- È un "junior veloce", non un architetto.
+
+**Quick start:**
+```bash
+# Opzione 1: usa il modello precostruito (più veloce)
+ollama pull qwen2.5-coder:1.5b
+ollama run qwen2.5-coder:1.5b
+
+# Opzione 2: costruisci il tuo GGUF con il sistema prompt personalizzato
+python scripts/quantize_gguf.py --in <hf_model_dir> --out outputs/gguf/coder.q4_k_m.gguf
+python scripts/export_ollama_coding.py --gguf outputs/gguf/coder.q4_k_m.gguf --name coder-local
+ollama run coder-local
+
+# Valuta il modello
+python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml
+```
+
+Per dettagli completi, prompt, fine-tuning opzionale su Kaggle, e limiti onesti, vedi **[`docs/coding-model.md`](./docs/coding-model.md)**.
 
 ---
 

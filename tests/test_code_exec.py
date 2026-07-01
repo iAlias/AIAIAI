@@ -22,11 +22,7 @@ def test_timeout_program():
 def test_non_utf8_output():
     """Regression test: program emitting invalid UTF-8 bytes should not raise UnicodeDecodeError."""
     # Program writes raw non-UTF8 bytes to stdout, should decode with U+FFFD replacement chars
-    program = (
-        "import sys\n"
-        "sys.stdout.buffer.write(b'\\xff\\xfe')\n"
-        "sys.exit(0)\n"
-    )
+    program = "import sys\n" "sys.stdout.buffer.write(b'\\xff\\xfe')\n" "sys.exit(0)\n"
     r = run_python(program)
     assert isinstance(r, dict), "run_python should always return a dict, not raise"
     assert r["passed"] is True, "Exit code 0 should be treated as passed"
