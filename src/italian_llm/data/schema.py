@@ -58,7 +58,7 @@ class SFTExample:
         }
 
     @classmethod
-    def from_dict(cls, rec: dict) -> "SFTExample":
+    def from_dict(cls, rec: dict) -> SFTExample:
         """Costruisce a partire da un dict, tollerando campi mancanti."""
         return cls(
             messages=rec.get("messages", []),
@@ -94,7 +94,7 @@ class PreferenceExample:
         }
 
     @classmethod
-    def from_dict(cls, rec: dict) -> "PreferenceExample":
+    def from_dict(cls, rec: dict) -> PreferenceExample:
         """Costruisce da un dict del formato JSONL delle preferenze."""
         meta = dict(rec.get("meta", {}) or {})
         # Conserva id/domain di primo livello dentro meta se non gia' presenti.
@@ -185,9 +185,9 @@ def validate_jsonl(path: str) -> dict:
         "total": 0,
         "valid": 0,
         "invalid": 0,
-        "errors": [],          # lista di {"line": n, "error": msg}
-        "by_domain": {},       # domain -> conteggio righe valide
-        "by_safety": {},       # safety_tag -> conteggio righe valide
+        "errors": [],  # lista di {"line": n, "error": msg}
+        "by_domain": {},  # domain -> conteggio righe valide
+        "by_safety": {},  # safety_tag -> conteggio righe valide
     }
 
     def _consume(line_no: int, rec: dict) -> None:
@@ -210,7 +210,7 @@ def validate_jsonl(path: str) -> dict:
     else:
         # Lettore JSONL minimale di riserva (solo stdlib).
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 for i, raw in enumerate(fh, start=1):
                     raw = raw.strip()
                     if not raw:

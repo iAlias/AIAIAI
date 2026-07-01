@@ -29,22 +29,28 @@ def test_render_plain_contains_tags():
     assert "<|assistant|>" in text
 
     # add_generation_prompt termina con l'header dell'assistente, pronto a generare.
-    gen = prompts.render_plain(
-        prompts.build_messages(None, "Ciao"), add_generation_prompt=True
-    )
+    gen = prompts.render_plain(prompts.build_messages(None, "Ciao"), add_generation_prompt=True)
     assert gen.rstrip().endswith("<|assistant|>")
     assert "<|user|>" in gen
 
 
 def test_synth_prompts_ten_domains():
     expected = {
-        "qa", "summary", "rewrite", "coding", "email",
-        "helpdesk", "faq", "admin", "dialog", "doc",
+        "qa",
+        "summary",
+        "rewrite",
+        "coding",
+        "email",
+        "helpdesk",
+        "faq",
+        "admin",
+        "dialog",
+        "doc",
     }
     assert set(prompts.SYNTH_PROMPTS.keys()) == expected
     assert len(prompts.SYNTH_PROMPTS) == 10
     # Ogni template e' una stringa non vuota con il placeholder {topic}.
-    for dom, tmpl in prompts.SYNTH_PROMPTS.items():
+    for tmpl in prompts.SYNTH_PROMPTS.values():
         assert isinstance(tmpl, str)
         assert tmpl.strip()
         assert "{topic}" in tmpl

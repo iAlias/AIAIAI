@@ -38,12 +38,14 @@ def deep_merge(a: dict, b: dict) -> dict:
 
 def _load_yaml_file(path: str) -> dict:
     """Legge un singolo file YAML e ritorna un dict (vuoto se file vuoto)."""
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     if data is None:
         return {}
     if not isinstance(data, dict):
-        raise ValueError(f"Il file di config '{path}' deve contenere un mapping YAML, trovato {type(data).__name__}.")
+        raise ValueError(
+            f"Il file di config '{path}' deve contenere un mapping YAML, trovato {type(data).__name__}."
+        )
     return data
 
 

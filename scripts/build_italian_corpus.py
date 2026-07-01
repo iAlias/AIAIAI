@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -55,7 +56,7 @@ def _iter_raw_documents(raw_dir: str):
     for path in txt_files:
         source = os.path.splitext(os.path.basename(path))[0]
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            with open(path, encoding="utf-8", errors="replace") as fh:
                 blob = fh.read()
         except Exception as exc:
             logger.warning("Lettura del file di testo '%s' fallita: %s", path, exc)
@@ -67,17 +68,24 @@ def _iter_raw_documents(raw_dir: str):
 
 def build(config_path: str, in_dir: str | None, out_path: str | None) -> int:
     """Costruisce il corpus intermedio normalizzato; ritorna il numero di documenti scritti."""
-    from italian_llm.data.cleaning import normalize_unicode, remove_boilerplate  # lazy (modulo puro)
+    from italian_llm.data.cleaning import (
+        normalize_unicode,
+        remove_boilerplate,
+    )  # lazy (modulo puro)
 
     cfg = load_config(config_path)
     do_normalize = bool(get(cfg, "corpus.filters.normalize_unicode", True))
     do_boilerplate = bool(get(cfg, "corpus.filters.remove_boilerplate", True))
 
     raw_dir = _abspath(in_dir or get(cfg, "paths.data_dir", "data/raw"))
-    out_file = _abspath(out_path or get(cfg, "corpus.output.interim_path", "data/interim/corpus.jsonl"))
+    out_file = _abspath(
+        out_path or get(cfg, "corpus.output.interim_path", "data/interim/corpus.jsonl")
+    )
 
     if not os.path.isdir(raw_dir):
-        logger.error("Directory dati grezzi inesistente: %s (esegui prima download_open_data.py).", raw_dir)
+        logger.error(
+            "Directory dati grezzi inesistente: %s (esegui prima download_open_data.py).", raw_dir
+        )
         return 0
 
     logger.info("Costruzione corpus intermedio: input=%s output=%s", raw_dir, out_file)
@@ -118,10 +126,18 @@ def build(config_path: str, in_dir: str | None, out_path: str | None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Normalizza i dati grezzi in un corpus intermedio JSONL.")
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s).")
-    parser.add_argument("--in-dir", default=None, help="Directory dati grezzi (default: paths.data_dir).")
-    parser.add_argument("--out", default=None, help="Percorso JSONL di output (default: data/interim/corpus.jsonl).")
+    parser = argparse.ArgumentParser(
+        description="Normalizza i dati grezzi in un corpus intermedio JSONL."
+    )
+    parser.add_argument(
+        "--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s)."
+    )
+    parser.add_argument(
+        "--in-dir", default=None, help="Directory dati grezzi (default: paths.data_dir)."
+    )
+    parser.add_argument(
+        "--out", default=None, help="Percorso JSONL di output (default: data/interim/corpus.jsonl)."
+    )
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
 

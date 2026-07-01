@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from italian_llm.config import get
 from italian_llm.logging_utils import get_logger
 from italian_llm.training.common import (
@@ -25,7 +23,7 @@ logger = get_logger(__name__)
 # --------------------------------------------------------------------------- #
 # Costruzione dataset di preferenze
 # --------------------------------------------------------------------------- #
-def _build_pairs(rows: List[dict], tokenizer) -> List[dict]:
+def _build_pairs(rows: list[dict], tokenizer) -> list[dict]:
     """Trasforma le righe di preferenza in record {prompt, chosen, rejected}.
 
     Il prompt viene reso col chat template includendo un system prompt
@@ -38,7 +36,7 @@ def _build_pairs(rows: List[dict], tokenizer) -> List[dict]:
     from italian_llm.tokenizer_utils import format_chat  # noqa: PLC0415
 
     system = balanced_system_prompt()
-    pairs: List[dict] = []
+    pairs: list[dict] = []
     skipped = 0
     for row in rows:
         user = row.get("prompt", "")
@@ -57,7 +55,7 @@ def _build_pairs(rows: List[dict], tokenizer) -> List[dict]:
     return pairs
 
 
-def _to_hf_dataset(pairs: List[dict]):
+def _to_hf_dataset(pairs: list[dict]):
     """Converte la lista di coppie in un datasets.Dataset."""
     datasets = require_datasets()
     return datasets.Dataset.from_list(pairs)
@@ -107,7 +105,9 @@ def _desired_args(cfg: dict, output_dir: str, torch, method: str, has_eval: bool
         # Lunghezze sequenza (nomi compatibili tra versioni trl).
         "max_length": max_len,
         "max_prompt_length": max_prompt_len,
-        "max_completion_length": int(get(cfg, "preference.max_completion_length", max_len - max_prompt_len)),
+        "max_completion_length": int(
+            get(cfg, "preference.max_completion_length", max_len - max_prompt_len)
+        ),
         "beta": beta,
     }
     if method == "orpo":

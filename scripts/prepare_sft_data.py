@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -53,8 +54,14 @@ def _last_role(messages: list, role: str) -> str:
     return ""
 
 
-def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
-            out_valid: str | None, out_test: str | None, seed: int | None) -> dict:
+def prepare(
+    config_path: str,
+    inputs: list[str] | None,
+    out_train: str | None,
+    out_valid: str | None,
+    out_test: str | None,
+    seed: int | None,
+) -> dict:
     """Esegue merge + validazione + filtri + dedup + split; ritorna statistiche."""
     from italian_llm.data.cleaning import dedup_near, is_italian, quality_score  # lazy (puro)
     from italian_llm.data.schema import validate_jsonl, validate_record  # lazy (puro)
@@ -72,8 +79,12 @@ def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
     dedup_threshold = float(filt.get("dedup_threshold", 0.9))
     drop_unsafe = bool(filt.get("drop_unsafe", True))
 
-    train_path = _abspath(out_train or get(cfg, "sft.output.train_path", "data/processed/sft_train.jsonl"))
-    valid_path = _abspath(out_valid or get(cfg, "sft.output.valid_path", "data/processed/sft_valid.jsonl"))
+    train_path = _abspath(
+        out_train or get(cfg, "sft.output.train_path", "data/processed/sft_train.jsonl")
+    )
+    valid_path = _abspath(
+        out_valid or get(cfg, "sft.output.valid_path", "data/processed/sft_valid.jsonl")
+    )
     test_path = _abspath(out_test or get(cfg, "sft.output.test_path", _sibling(train_path, "test")))
     valid_ratio = float(get(cfg, "sft.output.valid_ratio", 0.02))
     test_ratio = float(get(cfg, "sft.output.test_ratio", valid_ratio))
@@ -89,10 +100,14 @@ def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
     in_files = [p for p in in_files if os.path.isfile(p) and os.path.abspath(p) not in output_set]
 
     if not in_files:
-        logger.error("Nessun file SFT di input trovato. Genera prima i dati (create_instruction_dataset / synthesize).")
+        logger.error(
+            "Nessun file SFT di input trovato. Genera prima i dati (create_instruction_dataset / synthesize)."
+        )
         return {"total_in": 0, "kept": 0}
 
-    logger.info("Preparazione SFT da %d file: %s", len(in_files), [os.path.basename(p) for p in in_files])
+    logger.info(
+        "Preparazione SFT da %d file: %s", len(in_files), [os.path.basename(p) for p in in_files]
+    )
 
     stats = {
         "total_in": 0,
@@ -139,13 +154,15 @@ def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
                 continue
 
             # Chiave di dedup: testo utente + risposta (ultimo turno).
-            rec["_dedup_key"] = (user + " ||| " + assistant)
+            rec["_dedup_key"] = user + " ||| " + assistant
             merged.append(rec)
 
     # Dedup near sui contenuti (rimuove varianti quasi identiche tra umani/sintetici).
     if do_dedup_near and merged:
         before = len(merged)
-        merged = dedup_near(merged, key=lambda r: r.get("_dedup_key", ""), threshold=dedup_threshold)
+        merged = dedup_near(
+            merged, key=lambda r: r.get("_dedup_key", ""), threshold=dedup_threshold
+        )
         stats["drop_dedup"] = before - len(merged)
 
     for r in merged:
@@ -161,8 +178,8 @@ def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
     n_valid = max(1, int(n * valid_ratio)) if n >= 10 else 0
     n_test = max(1, int(n * test_ratio)) if n >= 10 else 0
     valid = merged[:n_valid]
-    test = merged[n_valid:n_valid + n_test]
-    train = merged[n_valid + n_test:]
+    test = merged[n_valid : n_valid + n_test]
+    train = merged[n_valid + n_test :]
 
     n_tr = write_jsonl(train_path, train)
     n_va = write_jsonl(valid_path, valid)
@@ -180,11 +197,16 @@ def prepare(config_path: str, inputs: list[str] | None, out_train: str | None,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Unisce, valida, deduplica e splitta i dati SFT.")
     parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML SFT (default: %(default)s).")
-    parser.add_argument("--inputs", default=None,
-                        help="File JSONL di input separati da virgola (default: auto-discovery).")
+    parser.add_argument(
+        "--inputs",
+        default=None,
+        help="File JSONL di input separati da virgola (default: auto-discovery).",
+    )
     parser.add_argument("--out-train", default=None, help="Output train (default da config).")
     parser.add_argument("--out-valid", default=None, help="Output valid (default da config).")
-    parser.add_argument("--out-test", default=None, help="Output test (default: sft_test.jsonl accanto al train).")
+    parser.add_argument(
+        "--out-test", default=None, help="Output test (default: sft_test.jsonl accanto al train)."
+    )
     parser.add_argument("--seed", type=int, default=None, help="Seme (default da config).")
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
@@ -192,7 +214,9 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(args.log_level)
     inputs = [p.strip() for p in args.inputs.split(",") if p.strip()] if args.inputs else None
     try:
-        stats = prepare(_abspath(args.config), inputs, args.out_train, args.out_valid, args.out_test, args.seed)
+        stats = prepare(
+            _abspath(args.config), inputs, args.out_train, args.out_valid, args.out_test, args.seed
+        )
     except Exception as exc:
         logger.error("Errore nella preparazione SFT: %s", exc)
         return 1

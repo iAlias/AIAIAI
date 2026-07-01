@@ -115,8 +115,19 @@ def _should_answer(label) -> bool:
         return bool(label)
     s = str(label).strip().lower()
     # Tutto cio' che non e' un esplicito 'rifiuta' e' considerato lecito.
-    return s not in {"refuse", "reject", "block", "unsafe", "harmful", "deny",
-                     "0", "false", "no", "rifiuta", "rifiuto"}
+    return s not in {
+        "refuse",
+        "reject",
+        "block",
+        "unsafe",
+        "harmful",
+        "deny",
+        "0",
+        "false",
+        "no",
+        "rifiuta",
+        "rifiuto",
+    }
 
 
 def over_refusal_rate(preds, labels) -> float:
@@ -129,10 +140,10 @@ def over_refusal_rate(preds, labels) -> float:
     labels = list(labels or [])
     licit = 0
     refused = 0
-    for p, l in zip(preds, labels):
-        if _should_answer(l):
+    for pred, label in zip(preds, labels, strict=False):
+        if _should_answer(label):
             licit += 1
-            if is_refusal(p):
+            if is_refusal(pred):
                 refused += 1
     return (refused / licit) if licit else 0.0
 
@@ -140,6 +151,7 @@ def over_refusal_rate(preds, labels) -> float:
 # ---------------------------------------------------------------------------
 # ROUGE-L (LCS) — implementazione pura; usa la libreria rouge-score se presente
 # ---------------------------------------------------------------------------
+
 
 def _lcs_length(a, b) -> int:
     """Lunghezza della piu' lunga sottosequenza comune (DP a memoria ridotta)."""
@@ -212,15 +224,95 @@ def verbosity_ratio(pred: str, ref: str) -> float:
 # Stopword italiane molto frequenti: una loro alta densita' e' un forte segnale
 # che il testo e' in italiano. Usato come fallback se data.cleaning non c'e'.
 _ITALIAN_STOPWORDS = {
-    "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "di", "a", "da", "in",
-    "con", "su", "per", "tra", "fra", "e", "ed", "o", "ma", "se", "che", "chi",
-    "cui", "non", "come", "dove", "quando", "perche", "piu", "anche", "questo",
-    "questa", "questi", "queste", "quello", "quella", "sono", "sei", "siamo",
-    "siete", "essere", "ho", "hai", "ha", "abbiamo", "avete", "hanno", "del",
-    "dello", "della", "dei", "degli", "delle", "nel", "nella", "al", "alla",
-    "ai", "agli", "alle", "dal", "dalla", "si", "ci", "vi", "ne", "mi", "ti",
-    "lui", "lei", "noi", "voi", "loro", "io", "tu", "molto", "tutto", "tutti",
-    "ogni", "fa", "puo", "essere", "stato", "cosa", "bene", "qui", "la", "gia",
+    "il",
+    "lo",
+    "la",
+    "i",
+    "gli",
+    "le",
+    "un",
+    "uno",
+    "una",
+    "di",
+    "a",
+    "da",
+    "in",
+    "con",
+    "su",
+    "per",
+    "tra",
+    "fra",
+    "e",
+    "ed",
+    "o",
+    "ma",
+    "se",
+    "che",
+    "chi",
+    "cui",
+    "non",
+    "come",
+    "dove",
+    "quando",
+    "perche",
+    "piu",
+    "anche",
+    "questo",
+    "questa",
+    "questi",
+    "queste",
+    "quello",
+    "quella",
+    "sono",
+    "sei",
+    "siamo",
+    "siete",
+    "essere",
+    "ho",
+    "hai",
+    "ha",
+    "abbiamo",
+    "avete",
+    "hanno",
+    "del",
+    "dello",
+    "della",
+    "dei",
+    "degli",
+    "delle",
+    "nel",
+    "nella",
+    "al",
+    "alla",
+    "ai",
+    "agli",
+    "alle",
+    "dal",
+    "dalla",
+    "si",
+    "ci",
+    "vi",
+    "ne",
+    "mi",
+    "ti",
+    "lui",
+    "lei",
+    "noi",
+    "voi",
+    "loro",
+    "io",
+    "tu",
+    "molto",
+    "tutto",
+    "tutti",
+    "ogni",
+    "fa",
+    "puo",
+    "stato",
+    "cosa",
+    "bene",
+    "qui",
+    "gia",
 }
 
 
@@ -253,6 +345,7 @@ def italianity_score(text: str) -> float:
 # ---------------------------------------------------------------------------
 # Aderenza all'istruzione (proxy euristico)
 # ---------------------------------------------------------------------------
+
 
 def instruction_adherence(pred, ref=None, instruction=None) -> float:
     """Stima euristica 0..1 di quanto la risposta segue l'istruzione.
@@ -290,6 +383,7 @@ def instruction_adherence(pred, ref=None, instruction=None) -> float:
 # ---------------------------------------------------------------------------
 # Coding pass@k
 # ---------------------------------------------------------------------------
+
 
 def _passed(result) -> bool:
     """Interpreta un singolo risultato di test come superato/non superato."""

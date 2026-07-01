@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -108,7 +109,9 @@ def _weighted_domains(domain_weights: dict, n: int, rng: random.Random) -> list[
     return rng.choices(domains, weights=weights, k=n)
 
 
-def build(config_path: str, corpus_path: str | None, max_total: int | None, seed: int | None) -> dict:
+def build(
+    config_path: str, corpus_path: str | None, max_total: int | None, seed: int | None
+) -> dict:
     """Costruisce gli esempi SFT, valida lo schema e scrive train/valid/test; ritorna statistiche."""
     from italian_llm.data.cleaning import italian_score, quality_score  # lazy (puro)
     from italian_llm.data.prompts import SYSTEM_DEFAULT, build_messages  # lazy (puro)
@@ -135,14 +138,21 @@ def build(config_path: str, corpus_path: str | None, max_total: int | None, seed
     valid_ratio = float(get(cfg, "sft.output.valid_ratio", 0.02))
     test_ratio = float(get(cfg, "sft.output.test_ratio", valid_ratio))
 
-    corpus_file = _abspath(corpus_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl"))
+    corpus_file = _abspath(
+        corpus_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl")
+    )
 
     teacher = get_teacher(get(cfg, "sft.teacher.name", "mock"))
     gen_kw = {
         "max_new_tokens": int(get(cfg, "sft.teacher.max_new_tokens", 512)),
         "temperature": float(get(cfg, "sft.teacher.temperature", 0.7)),
     }
-    logger.info("Costruzione SFT: teacher=%s target/dominio=%d max_total=%d", teacher.name, target_per_domain, max_total)
+    logger.info(
+        "Costruzione SFT: teacher=%s target/dominio=%d max_total=%d",
+        teacher.name,
+        target_per_domain,
+        max_total,
+    )
 
     # Brani di corpus disponibili (se presenti): usati per i domini ancorati al testo.
     contexts: list[str] = []
@@ -156,7 +166,9 @@ def build(config_path: str, corpus_path: str | None, max_total: int | None, seed
         logger.warning("Corpus processato assente (%s): uso solo i prompt di seme.", corpus_file)
 
     # Quanti esempi per dominio (limitati anche dal tetto globale).
-    plan = _weighted_domains(domain_weights, min(max_total, target_per_domain * max(1, len(domain_weights))), rng)
+    plan = _weighted_domains(
+        domain_weights, min(max_total, target_per_domain * max(1, len(domain_weights))), rng
+    )
     rng.shuffle(plan)
 
     examples: list[dict] = []
@@ -244,8 +256,8 @@ def build(config_path: str, corpus_path: str | None, max_total: int | None, seed
     n_valid = max(1, int(n * valid_ratio)) if n >= 10 else 0
     n_test = max(1, int(n * test_ratio)) if n >= 10 else 0
     valid = examples[:n_valid]
-    test = examples[n_valid:n_valid + n_test]
-    train = examples[n_valid + n_test:]
+    test = examples[n_valid : n_valid + n_test]
+    train = examples[n_valid + n_test :]
 
     n_tr = write_jsonl(train_path, train)
     n_va = write_jsonl(valid_path, valid)
@@ -262,10 +274,14 @@ def build(config_path: str, corpus_path: str | None, max_total: int | None, seed
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Crea il dataset SFT istruzioni da corpus + template.")
+    parser = argparse.ArgumentParser(
+        description="Crea il dataset SFT istruzioni da corpus + template."
+    )
     parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML SFT (default: %(default)s).")
     parser.add_argument("--corpus", default=None, help="Corpus processato (default da config).")
-    parser.add_argument("--max-total", type=int, default=None, help="Tetto totale esempi (default da config).")
+    parser.add_argument(
+        "--max-total", type=int, default=None, help="Tetto totale esempi (default da config)."
+    )
     parser.add_argument("--seed", type=int, default=None, help="Seme (default da config).")
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)

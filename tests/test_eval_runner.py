@@ -1,8 +1,6 @@
 import json
 import os
 
-import pytest
-
 from italian_llm.evaluation import runner as R
 
 

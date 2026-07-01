@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -65,7 +66,9 @@ def _download_hf_source(source: dict, raw_dir: str, max_docs: int) -> int:
         # Una sorgente può specificare esplicitamente il config HF.
         kwargs["name"] = source["config"]
 
-    logger.info("Sorgente '%s': load_dataset(%s, %s, split=%s, streaming=True)", name, path, kwargs, split)
+    logger.info(
+        "Sorgente '%s': load_dataset(%s, %s, split=%s, streaming=True)", name, path, kwargs, split
+    )
     ds = load_dataset(path, split=split, streaming=True, **kwargs)
 
     out_path = os.path.join(raw_dir, f"{name}.jsonl")
@@ -91,13 +94,19 @@ def _generate_synthetic_corpus(raw_dir: str, n_docs: int, seed: int) -> int:
 
     rng = random.Random(seed)
     teacher = get_teacher("mock")  # deterministico, nessuna rete
-    logger.info("Generazione corpus sintetico di bootstrap con teacher '%s' (%d documenti).", teacher.name, n_docs)
+    logger.info(
+        "Generazione corpus sintetico di bootstrap con teacher '%s' (%d documenti).",
+        teacher.name,
+        n_docs,
+    )
 
     rows = []
     for i in range(n_docs):
         topic = _BOOTSTRAP_TOPICS[i % len(_BOOTSTRAP_TOPICS)]
         # Piccole variazioni per evitare documenti identici.
-        flavor = rng.choice(["in modo chiaro e ordinato", "con esempi concreti", "per un lettore non esperto"])
+        flavor = rng.choice(
+            ["in modo chiaro e ordinato", "con esempi concreti", "per un lettore non esperto"]
+        )
         user = f"Scrivi un breve testo informativo in italiano su {topic}, {flavor}."
         messages = build_messages(SYSTEM_DEFAULT, user)
         try:
@@ -105,7 +114,14 @@ def _generate_synthetic_corpus(raw_dir: str, n_docs: int, seed: int) -> int:
         except Exception as exc:  # il mock non dovrebbe fallire, ma restiamo robusti
             logger.warning("Generazione sintetica fallita per il doc %d: %s", i, exc)
             text = f"Testo informativo in italiano su {topic}. {flavor.capitalize()}."
-        rows.append({"id": f"synthetic-{i}", "text": text, "source": "synthetic_fallback", "domain": "general"})
+        rows.append(
+            {
+                "id": f"synthetic-{i}",
+                "text": text,
+                "source": "synthetic_fallback",
+                "domain": "general",
+            }
+        )
 
     out_path = os.path.join(raw_dir, "synthetic_bootstrap.jsonl")
     written = write_jsonl(out_path, rows)
@@ -113,8 +129,14 @@ def _generate_synthetic_corpus(raw_dir: str, n_docs: int, seed: int) -> int:
     return written
 
 
-def download(config_path: str, out_dir: str | None, max_docs: int, synthetic_docs: int,
-             force_synthetic: bool, seed: int) -> int:
+def download(
+    config_path: str,
+    out_dir: str | None,
+    max_docs: int,
+    synthetic_docs: int,
+    force_synthetic: bool,
+    seed: int,
+) -> int:
     """Esegue il download delle sorgenti abilitate; in caso di necessità genera il fallback."""
     cfg = load_config(config_path)
     set_seed(seed)
@@ -135,14 +157,23 @@ def download(config_path: str, out_dir: str | None, max_docs: int, synthetic_doc
                 got = _download_hf_source(source, raw_dir, max_docs)
             elif stype == "synthetic":
                 # Gestita esplicitamente più sotto come fallback unico.
-                logger.info("Sorgente sintetica '%s': verrà generata dal fallback.", source.get("name"))
+                logger.info(
+                    "Sorgente sintetica '%s': verrà generata dal fallback.", source.get("name")
+                )
                 continue
             else:
-                logger.info("Sorgente '%s' di tipo '%s' non scaricabile qui: salto.", source.get("name"), stype)
+                logger.info(
+                    "Sorgente '%s' di tipo '%s' non scaricabile qui: salto.",
+                    source.get("name"),
+                    stype,
+                )
                 continue
         except Exception as exc:
-            logger.warning("Download della sorgente '%s' fallito (%s): proseguo col fallback.",
-                           source.get("name"), exc)
+            logger.warning(
+                "Download della sorgente '%s' fallito (%s): proseguo col fallback.",
+                source.get("name"),
+                exc,
+            )
             continue
         total += got
         if got > 0:
@@ -161,12 +192,22 @@ def download(config_path: str, out_dir: str | None, max_docs: int, synthetic_doc
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Scarica sorgenti italiane aperte o genera un corpus sintetico.")
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s).")
-    parser.add_argument("--out", default=None, help="Directory di output (default: paths.data_dir o data/raw).")
+    parser = argparse.ArgumentParser(
+        description="Scarica sorgenti italiane aperte o genera un corpus sintetico."
+    )
+    parser.add_argument(
+        "--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s)."
+    )
+    parser.add_argument(
+        "--out", default=None, help="Directory di output (default: paths.data_dir o data/raw)."
+    )
     parser.add_argument("--max-docs", type=int, default=2000, help="Max documenti per sorgente HF.")
-    parser.add_argument("--synthetic-docs", type=int, default=120, help="Documenti del fallback sintetico.")
-    parser.add_argument("--force-synthetic", action="store_true", help="Genera sempre anche il fallback sintetico.")
+    parser.add_argument(
+        "--synthetic-docs", type=int, default=120, help="Documenti del fallback sintetico."
+    )
+    parser.add_argument(
+        "--force-synthetic", action="store_true", help="Genera sempre anche il fallback sintetico."
+    )
     parser.add_argument("--seed", type=int, default=42, help="Seme per la generazione sintetica.")
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
@@ -174,7 +215,14 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(args.log_level)
     config_path = _abspath(args.config)
     try:
-        n = download(config_path, args.out, args.max_docs, args.synthetic_docs, args.force_synthetic, args.seed)
+        n = download(
+            config_path,
+            args.out,
+            args.max_docs,
+            args.synthetic_docs,
+            args.force_synthetic,
+            args.seed,
+        )
     except Exception as exc:
         logger.error("Errore irreversibile nel download dati: %s", exc)
         return 1

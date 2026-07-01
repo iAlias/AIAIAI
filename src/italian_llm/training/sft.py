@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from italian_llm.config import get
 from italian_llm.logging_utils import get_logger
 from italian_llm.training.common import (
@@ -24,7 +22,9 @@ logger = get_logger(__name__)
 # --------------------------------------------------------------------------- #
 # Encoding con masking del prompt
 # --------------------------------------------------------------------------- #
-def _encode_example(messages: List[dict], tokenizer, max_seq_len: int) -> Optional[Dict[str, List[int]]]:
+def _encode_example(
+    messages: list[dict], tokenizer, max_seq_len: int
+) -> dict[str, list[int]] | None:
     """Tokenizza una conversazione mascherando tutto tranne le risposte assistant.
 
     Strategia stabile a prefisso (valida per i template Qwen e per il fallback
@@ -66,9 +66,9 @@ def _encode_example(messages: List[dict], tokenizer, max_seq_len: int) -> Option
     }
 
 
-def _build_dataset(rows: List[dict], tokenizer, max_seq_len: int) -> List[Dict[str, List[int]]]:
+def _build_dataset(rows: list[dict], tokenizer, max_seq_len: int) -> list[dict[str, list[int]]]:
     """Costruisce la lista di esempi tokenizzati a partire dalle righe SFT JSONL."""
-    examples: List[Dict[str, List[int]]] = []
+    examples: list[dict[str, list[int]]] = []
     skipped = 0
     for row in rows:
         messages = row.get("messages")
@@ -94,7 +94,7 @@ class _MaskingCollator:
         if self.pad_id is None:
             self.pad_id = getattr(tokenizer, "eos_token_id", 0) or 0
 
-    def __call__(self, features: List[Dict[str, List[int]]]):
+    def __call__(self, features: list[dict[str, list[int]]]):
         import torch  # noqa: PLC0415
 
         max_len = max(len(f["input_ids"]) for f in features)
@@ -256,7 +256,9 @@ def run_sft(cfg: dict) -> str:
         trainer = _build_hf_trainer(cfg, model, tokenizer, desired, train_ds, eval_ds, collator)
         logger.info("SFT: uso transformers.Trainer.")
 
-    logger.info("Avvio SFT: %d esempi, max_seq_len=%d, output=%s", len(train_ds), max_seq_len, output_dir)
+    logger.info(
+        "Avvio SFT: %d esempi, max_seq_len=%d, output=%s", len(train_ds), max_seq_len, output_dir
+    )
     trainer.train()
 
     # --- Salvataggio finale (adapter + tokenizer) ---

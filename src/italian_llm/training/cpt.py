@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 import os
 import time
+from collections.abc import Iterator
 from contextlib import nullcontext
-from typing import Iterator, List
 
 from italian_llm.config import get
 from italian_llm.logging_utils import get_logger
@@ -34,7 +34,7 @@ def _iter_documents(path: str) -> Iterator[str]:
     - .txt: ogni documento e' separato da una riga vuota (doppio newline).
     """
     if os.path.isdir(path):
-        files: List[str] = []
+        files: list[str] = []
         for root, _dirs, names in os.walk(path):
             for name in names:
                 if name.endswith((".jsonl", ".txt")):
@@ -50,15 +50,13 @@ def _iter_documents(path: str) -> Iterator[str]:
             for row in read_jsonl(fpath):
                 text = row.get("text")
                 if not text and row.get("messages"):
-                    text = "\n".join(
-                        str(m.get("content", "")) for m in row.get("messages", [])
-                    )
+                    text = "\n".join(str(m.get("content", "")) for m in row.get("messages", []))
                 if not text and row.get("content"):
                     text = row.get("content")
                 if text and str(text).strip():
                     yield str(text).strip()
         else:
-            with open(fpath, "r", encoding="utf-8") as fh:
+            with open(fpath, encoding="utf-8") as fh:
                 content = fh.read()
             for doc in content.split("\n\n"):
                 doc = doc.strip()
@@ -66,15 +64,15 @@ def _iter_documents(path: str) -> Iterator[str]:
                     yield doc
 
 
-def _build_token_blocks(documents: Iterator[str], tokenizer, block_size: int) -> List[List[int]]:
+def _build_token_blocks(documents: Iterator[str], tokenizer, block_size: int) -> list[list[int]]:
     """Tokenizza e impacchetta i documenti in blocchi contigui di `block_size` token.
 
     I documenti sono separati dal token EOS; il resto piu' corto di un blocco viene
     scartato per mantenere blocchi di lunghezza uniforme (semplice e veloce).
     """
     eos_id = getattr(tokenizer, "eos_token_id", None)
-    buffer: List[int] = []
-    blocks: List[List[int]] = []
+    buffer: list[int] = []
+    blocks: list[list[int]] = []
     n_docs = 0
 
     for doc in documents:
@@ -97,7 +95,7 @@ def _build_token_blocks(documents: Iterator[str], tokenizer, block_size: int) ->
     return blocks
 
 
-def _collate(batch: List[List[int]]):
+def _collate(batch: list[list[int]]):
     """Impila una lista di blocchi (liste di int) in tensori per il forward causale."""
     import torch  # noqa: PLC0415
 
@@ -217,9 +215,7 @@ def run_cpt(cfg: dict) -> str:
             labels = batch["labels"].to(device)
 
             amp_ctx = (
-                torch.autocast(device_type="cuda", dtype=amp_dtype)
-                if use_amp
-                else nullcontext()
+                torch.autocast(device_type="cuda", dtype=amp_dtype) if use_amp else nullcontext()
             )
             with amp_ctx:
                 out = model(

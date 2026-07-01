@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Iterable, Iterator
+from collections.abc import Iterable, Iterator
 
 from italian_llm.logging_utils import get_logger
 
@@ -37,7 +37,7 @@ def read_jsonl(path: str) -> Iterator[dict]:
         raise FileNotFoundError(f"File JSONL non trovato: '{path}'.")
 
     skipped = 0
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for lineno, raw in enumerate(fh, start=1):
             line = raw.strip()
             if not line:

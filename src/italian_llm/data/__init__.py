@@ -1,40 +1,40 @@
 """Pacchetto dati: schema, prompt, pulizia e sintesi (importabile senza torch)."""
 
-from . import schema, prompts, cleaning, synthetic
+from . import cleaning, prompts, schema, synthetic
+from .cleaning import (
+    dedup_exact,
+    dedup_near,
+    detect_language,
+    is_italian,
+    italian_score,
+    length_ok,
+    normalize_unicode,
+    quality_score,
+    remove_boilerplate,
+)
+from .prompts import (
+    SYNTH_PROMPTS,
+    SYSTEM_DEFAULT,
+    build_messages,
+    render_plain,
+)
 
 # Re-export dei simboli piu' usati (tutti puri, nessuna dipendenza pesante a import-time).
 from .schema import (
     SCHEMA_FIELDS,
-    SFTExample,
     PreferenceExample,
-    validate_record,
+    SFTExample,
     validate_jsonl,
-)
-from .prompts import (
-    SYSTEM_DEFAULT,
-    SYNTH_PROMPTS,
-    build_messages,
-    render_plain,
-)
-from .cleaning import (
-    normalize_unicode,
-    remove_boilerplate,
-    detect_language,
-    is_italian,
-    italian_score,
-    quality_score,
-    length_ok,
-    dedup_exact,
-    dedup_near,
+    validate_record,
 )
 from .synthetic import (
-    TeacherProvider,
+    HFLocalTeacher,
     MockTeacher,
     OpenAICompatTeacher,
-    HFLocalTeacher,
+    TeacherProvider,
     get_teacher,
-    synthesize_batch,
     majority_rank,
+    synthesize_batch,
 )
 
 __all__ = [

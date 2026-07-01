@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -28,13 +29,23 @@ def _abspath(path: str) -> str:
     return path if os.path.isabs(path) else os.path.join(REPO_ROOT, path)
 
 
-def pack(config_path: str, in_path: str | None, out_path: str | None,
-         block_chars: int | None, block_tokens: int | None, min_block_chars: int) -> dict:
+def pack(
+    config_path: str,
+    in_path: str | None,
+    out_path: str | None,
+    block_chars: int | None,
+    block_tokens: int | None,
+    min_block_chars: int,
+) -> dict:
     """Concatena e impacchetta i documenti in blocchi ~block_chars; ritorna statistiche."""
     cfg = load_config(config_path)
 
-    in_file = _abspath(in_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl"))
-    out_file = _abspath(out_path or get(cfg, "corpus.output.cpt_path", "data/processed/cpt_blocks.jsonl"))
+    in_file = _abspath(
+        in_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl")
+    )
+    out_file = _abspath(
+        out_path or get(cfg, "corpus.output.cpt_path", "data/processed/cpt_blocks.jsonl")
+    )
 
     if block_chars is None:
         if block_tokens is not None:
@@ -43,7 +54,9 @@ def pack(config_path: str, in_path: str | None, out_path: str | None,
             block_chars = 4096  # ~1024 token: blocco CPT compatto e ragionevole
 
     if not os.path.isfile(in_file):
-        logger.error("Corpus processato non trovato: %s (esegui prima clean_dedup_filter.py).", in_file)
+        logger.error(
+            "Corpus processato non trovato: %s (esegui prima clean_dedup_filter.py).", in_file
+        )
         return {"blocks": 0}
 
     logger.info("Packing CPT: input=%s output=%s block_chars=%d", in_file, out_file, block_chars)
@@ -119,20 +132,40 @@ def pack(config_path: str, in_path: str | None, out_path: str | None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Impacchetta il corpus in blocchi di testo per il CPT.")
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s).")
-    parser.add_argument("--in", dest="in_path", default=None, help="Corpus processato (default da config).")
-    parser.add_argument("--out", default=None, help="JSONL blocchi CPT (default: data/processed/cpt_blocks.jsonl).")
-    parser.add_argument("--block-chars", type=int, default=None, help="Caratteri per blocco (default: 4096).")
-    parser.add_argument("--block-tokens", type=int, default=None, help="Token per blocco (deriva i caratteri).")
-    parser.add_argument("--min-block-chars", type=int, default=200, help="Lunghezza minima di un blocco.")
+    parser = argparse.ArgumentParser(
+        description="Impacchetta il corpus in blocchi di testo per il CPT."
+    )
+    parser.add_argument(
+        "--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s)."
+    )
+    parser.add_argument(
+        "--in", dest="in_path", default=None, help="Corpus processato (default da config)."
+    )
+    parser.add_argument(
+        "--out", default=None, help="JSONL blocchi CPT (default: data/processed/cpt_blocks.jsonl)."
+    )
+    parser.add_argument(
+        "--block-chars", type=int, default=None, help="Caratteri per blocco (default: 4096)."
+    )
+    parser.add_argument(
+        "--block-tokens", type=int, default=None, help="Token per blocco (deriva i caratteri)."
+    )
+    parser.add_argument(
+        "--min-block-chars", type=int, default=200, help="Lunghezza minima di un blocco."
+    )
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
 
     setup_logging(args.log_level)
     try:
-        stats = pack(_abspath(args.config), args.in_path, args.out,
-                     args.block_chars, args.block_tokens, args.min_block_chars)
+        stats = pack(
+            _abspath(args.config),
+            args.in_path,
+            args.out,
+            args.block_chars,
+            args.block_tokens,
+            args.min_block_chars,
+        )
     except Exception as exc:
         logger.error("Errore nel packing CPT: %s", exc)
         return 1

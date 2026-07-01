@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 """CLI per l'allineamento alle preferenze (ORPO di default, DPO opzionale) in QLoRA."""
 
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import argparse
 import json
 
-from italian_llm.config import load_config, get
-from italian_llm.logging_utils import setup_logging, get_logger
+from italian_llm.config import get, load_config
+from italian_llm.logging_utils import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
