@@ -58,10 +58,8 @@ def main(argv=None):
     setup_logging(args.log_level)
     cfg = load_config(args.config)
 
-    predict_fn, pred = _make_predictor(cfg)
-    logger.info("Predizioni in modalita' iniziale: %s", pred.mode)
     predict_fn, predictor = _make_predictor(cfg)
-    logger.info("Predizioni in modalita' (iniziale): %s", predictor.mode)
+    logger.info("Predizioni in modalita' iniziale: %s", predictor.mode)
 
     exec_set = get(cfg, "eval_coding.exec_set")
     timeout = float(get(cfg, "eval_coding.timeout_s", 8.0))
@@ -89,13 +87,11 @@ def main(argv=None):
         results = [{**r, "attempts": None} for r in base_results]
 
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
-    # pred.mode e' riletto DOPO tutte le predizioni: se il backend scelto in
-    # init() (ollama/generator) e' fallito a runtime su qualche chiamata, il
-    # fallback al MockTeacher ha gia' aggiornato pred.mode di conseguenza, cosi'
-    # il report non dichiara un backend che in realta' non ha generato nulla.
-    final_mode = pred.mode
-
-    mode = predictor.mode  # rilettura post-loop: riflette eventuale fallback a mock
+    # predictor.mode e' riletto DOPO tutte le predizioni: se il backend scelto
+    # in init() (ollama/generator) e' fallito a runtime su qualche chiamata, il
+    # fallback al MockTeacher ha gia' aggiornato predictor.mode di conseguenza,
+    # cosi' il report non dichiara un backend che in realta' non ha generato nulla.
+    final_mode = predictor.mode
 
     report = {
         "generation_mode": final_mode,
