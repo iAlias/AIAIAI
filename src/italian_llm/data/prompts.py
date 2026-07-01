@@ -110,7 +110,7 @@ SYNTH_PROMPTS: dict[str, str] = {
     "summary": (
         "Scrivi un breve testo in italiano (5-8 frasi) su: {topic}. "
         "Poi, su una nuova riga, aggiungi l'istruzione: "
-        "\"Riassumi il testo seguente in 2-3 frasi mantenendo i punti chiave.\" "
+        '"Riassumi il testo seguente in 2-3 frasi mantenendo i punti chiave." '
         "Restituisci prima l'istruzione e poi il testo da riassumere."
     ),
     "rewrite": (

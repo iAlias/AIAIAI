@@ -4,14 +4,17 @@ C#/JS/HTML/CSS. Offline: usa un campione locale. Reale: leggi un JSONL esportato
 da un dataset aperto (Magicoder/Evol-Instruct-Code/OSS-Instruct) con campi
 instruction/response/language, oppure adatta load_open() con `datasets` (lazy)."""
 
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import argparse
 
 from italian_llm.data.prompts import coding_system
 from italian_llm.data.schema import validate_record
+from italian_llm.logging_utils import get_logger, setup_logging
 from italian_llm.utils.io import read_jsonl, write_jsonl
-from italian_llm.logging_utils import setup_logging, get_logger
 
 logger = get_logger(__name__)
 

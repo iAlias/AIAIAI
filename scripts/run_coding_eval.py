@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 """Valutazione coding: pass@1 eseguibile (Python) + set qualitativo C#/web."""
 
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import argparse
 import json
 
-from italian_llm.config import load_config, get
-from italian_llm.logging_utils import setup_logging, get_logger
+from italian_llm.config import get, load_config
 from italian_llm.evaluation import code_eval
 from italian_llm.evaluation import metrics as M
+from italian_llm.logging_utils import get_logger, setup_logging
 from italian_llm.utils.io import ensure_dir
 
 logger = get_logger(__name__)
@@ -19,17 +22,20 @@ def _make_predictor(cfg: dict):
     """Generator reale con fallback MockTeacher (riusa la logica del runner)."""
     from italian_llm.evaluation.runner import _Predictor
 
-    sub = {"eval": {
-        "model_path": get(cfg, "eval_coding.model_path"),
-        "adapter": get(cfg, "eval_coding.adapter", ""),
-        "max_new_tokens": get(cfg, "eval_coding.max_new_tokens", 512),
-        "temperature": get(cfg, "eval_coding.temperature", 0.0),
-    }}
+    sub = {
+        "eval": {
+            "model_path": get(cfg, "eval_coding.model_path"),
+            "adapter": get(cfg, "eval_coding.adapter", ""),
+            "max_new_tokens": get(cfg, "eval_coding.max_new_tokens", 512),
+            "temperature": get(cfg, "eval_coding.temperature", 0.0),
+        }
+    }
     pred = _Predictor(sub)
     pred.init()
 
     def predict_fn(prompt: str) -> str:
-        from italian_llm.data.prompts import coding_system, build_messages
+        from italian_llm.data.prompts import build_messages, coding_system
+
         messages = build_messages(coding_system(), prompt)
         return pred.predict(messages)
 
