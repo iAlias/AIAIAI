@@ -41,6 +41,9 @@ def _make_predictor(cfg: dict):
         messages = build_messages(coding_system(), prompt)
         return pred.predict(messages)
 
+    # pred.mode e' letto dal chiamante DOPO aver esaurito predict_fn su tutti
+    # i problemi: non ritornarlo qui, sarebbe congelato su "generator" anche
+    # se il primo predict() degrada a mock (vedi _Predictor.predict).
     return predict_fn, pred
 
 
@@ -57,6 +60,8 @@ def main(argv=None):
 
     predict_fn, pred = _make_predictor(cfg)
     logger.info("Predizioni in modalita' iniziale: %s", pred.mode)
+    predict_fn, predictor = _make_predictor(cfg)
+    logger.info("Predizioni in modalita' (iniziale): %s", predictor.mode)
 
     exec_set = get(cfg, "eval_coding.exec_set")
     timeout = float(get(cfg, "eval_coding.timeout_s", 8.0))
@@ -89,6 +94,8 @@ def main(argv=None):
     # fallback al MockTeacher ha gia' aggiornato pred.mode di conseguenza, cosi'
     # il report non dichiara un backend che in realta' non ha generato nulla.
     final_mode = pred.mode
+
+    mode = predictor.mode  # rilettura post-loop: riflette eventuale fallback a mock
 
     report = {
         "generation_mode": final_mode,

@@ -163,6 +163,7 @@ class _Predictor:
             except Exception as e:
                 logger.warning("Generazione fallita (%s); passo al MockTeacher.", e)
                 self._gen = None  # disattiva il reale per i prossimi item
+                self.mode = "mock"  # self.mode non deve restare "generator" dopo il fallback
         self._ensure_mock()
         return self._mock.generate(messages)
 
@@ -250,6 +251,13 @@ def run_eval(cfg: dict) -> dict:
             "prediction": pred,
             "latency_s": round(latency, 4),
         })
+
+    # gen_mode e' stato letto da init() prima di generare: se il Generator
+    # falliva alla prima chiamata reale, predict() degrada a mock ma
+    # gen_mode restava congelato su "generator". Rileggiamo predictor.mode
+    # a fine ciclo per riflettere l'esito effettivo.
+    if predictor is not None:
+        gen_mode = predictor.mode
 
     # ----- Calcolo metriche per-record + aggregate -----
     preds = [r["prediction"] for r in rows]
