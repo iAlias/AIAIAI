@@ -8,9 +8,12 @@
 # moderne; per Linux + CUDA usa l'indice ufficiale PyTorch per la build cu12x.
 # ===========================================================================
 
+# Per install riproducibili del set leggero usa i pin di constraints.txt:
+#   pip install -r requirements.txt -c constraints.txt   (solo blocco core/dev)
+
 # --- core (sempre necessario, leggero) -------------------------------------
 pyyaml>=6.0.1
-numpy>=1.26,<2.2
+numpy>=1.26,<3
 tqdm>=4.66
 requests>=2.32
 pydantic>=2.7
