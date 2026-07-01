@@ -235,6 +235,103 @@ The only cost is **your time** and **local electricity**. No subscriptions, no A
 
 ---
 
+## Phase E: Advanced Features (RAG, Self-Repair, FIM)
+
+### RAG sul tuo codice
+
+Ask the model questions about your codebase with **Retrieval-Augmented Generation (RAG)**:
+
+```bash
+python scripts/rag_ask.py \
+  --root <tua/cartella> \
+  --question "How does authentication work?" \
+  --k 4 \
+  --model Qwen/Qwen2.5-Coder-1.5B-Instruct
+```
+
+**How it works:**
+1. Indexes all source files in `<tua/cartella>` into semantic chunks.
+2. Searches for the top `--k` chunks (default: 4) most relevant to your `--question`.
+3. Augments the question with the retrieved context.
+4. Sends the enriched prompt to the coder model.
+
+**Use cases:**
+- Ask about patterns or conventions in your existing codebase.
+- Get suggestions grounded in your actual code style.
+- Reduce hallucination by anchoring responses to real code snippets.
+
+**Parameters:**
+- `--root`: Path to your codebase (default: current directory `.`)
+- `--question`: Your question (required)
+- `--k`: Number of code chunks to retrieve (default: 4)
+- `--model`: HuggingFace model identifier (default: `Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+
+---
+
+### Auto-riparazione
+
+Enable **self-repair** to let the model fix its own code when tests fail:
+
+```bash
+python scripts/run_coding_eval.py \
+  --config configs/eval/eval_coding.yaml \
+  --repair 3
+```
+
+**How it works:**
+1. Generates code for a problem.
+2. Executes the code in a sandbox (if executable) or checks it heuristically.
+3. If the solution fails, re-prompts the model with the error message.
+4. Repeats up to `--repair` times (default: 0 = disabled).
+5. Reports the final pass/fail and number of attempts used.
+
+**Use cases:**
+- Improve solution correctness by leveraging the model's ability to debug.
+- Measure how many attempts are needed to arrive at a correct solution.
+- Understand the model's error-recovery behavior.
+
+**Parameters:**
+- `--config`: Path to evaluation config YAML (default: `configs/eval/eval_coding.yaml`)
+- `--repair`: Maximum number of self-repair attempts (default: 0 = off)
+- `--log-level`: Logging verbosity (default: `INFO`)
+
+**Note:** Self-repair is most effective for **executable, sandboxed** languages (Python). For non-executable domains (C#, HTML/CSS), repairs rely on heuristic feedback.
+
+---
+
+### FIM autocomplete
+
+Use **Fill-In-The-Middle (FIM)** for in-context code completion:
+
+```bash
+python scripts/fim_complete.py \
+  --prefix "def calculate_sum(arr):" \
+  --suffix "return result" \
+  --model Qwen/Qwen2.5-Coder-1.5B-Instruct \
+  --max-new-tokens 128
+```
+
+**How it works:**
+1. Takes a code prefix (before the cursor) and suffix (after the cursor).
+2. Constructs a FIM prompt with special tokens.
+3. Generates the missing code in the middle.
+4. Strips FIM tokens and returns clean code.
+
+**Use cases:**
+- IDE integration: cursor in the middle of a function, generate the body.
+- Multi-file completions: given code context, complete the next method.
+- Reduce latency: FIM is often faster than full-text generation for inline edits.
+
+**Parameters:**
+- `--prefix`: Code before the cursor (required)
+- `--suffix`: Code after the cursor (default: empty string)
+- `--model`: HuggingFace model identifier (default: `Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+- `--max-new-tokens`: Maximum tokens to generate (default: 128)
+
+**Requirement:** FIM requires `transformers` and a local copy of the model (GPU or CPU with model downloaded). It does **not** work with remote Ollama servers; it must run on the same machine where the model is loaded.
+
+---
+
 ## Further Reading
 
 - **[Italian LLM README](../README.md)** — full project overview, two-track (V1/V2) philosophy.
