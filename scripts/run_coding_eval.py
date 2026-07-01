@@ -33,7 +33,10 @@ def _make_predictor(cfg: dict):
         messages = build_messages(coding_system(), prompt)
         return pred.predict(messages)
 
-    return predict_fn, pred.mode
+    # pred.mode e' letto dal chiamante DOPO aver esaurito predict_fn su tutti
+    # i problemi: non ritornarlo qui, sarebbe congelato su "generator" anche
+    # se il primo predict() degrada a mock (vedi _Predictor.predict).
+    return predict_fn, pred
 
 
 def main(argv=None):
@@ -44,14 +47,16 @@ def main(argv=None):
     setup_logging(args.log_level)
     cfg = load_config(args.config)
 
-    predict_fn, mode = _make_predictor(cfg)
-    logger.info("Predizioni in modalita': %s", mode)
+    predict_fn, predictor = _make_predictor(cfg)
+    logger.info("Predizioni in modalita' (iniziale): %s", predictor.mode)
 
     exec_set = get(cfg, "eval_coding.exec_set")
     timeout = float(get(cfg, "eval_coding.timeout_s", 8.0))
     problems = code_eval.load_problems(exec_set)
     results = code_eval.evaluate_coding(problems, predict_fn, timeout=timeout)
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
+
+    mode = predictor.mode  # rilettura post-loop: riflette eventuale fallback a mock
 
     report = {
         "generation_mode": mode,
