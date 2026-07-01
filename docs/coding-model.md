@@ -158,11 +158,11 @@ Fine-tuning is **not required** to get useful results; it's a **quality lever**,
 
 ```bash
 python scripts/build_coding_sft.py \
-  --output data/processed/coding_sft.jsonl \
-  --languages "csharp,javascript,html,css"
+  --in data/processed/coding_sft.sample.jsonl \
+  --out data/processed/coding_sft.jsonl
 ```
 
-This generates a dataset in the repo's schema (chat JSONL with system prompt, user query, assistant response) from open-source coding datasets, filtered to your target languages. Output goes to `data/processed/coding_sft.jsonl`.
+This generates a dataset in the repo's schema (chat JSONL with system prompt, user query, assistant response) from open-source coding datasets. Language detection is performed automatically via `filter_language()`. Output goes to `data/processed/coding_sft.jsonl`.
 
 ### Step 2: Fine-tune on Kaggle (Free ~30h/week)
 
