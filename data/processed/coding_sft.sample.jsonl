@@ -1,0 +1,2 @@
+{"instruction": "In C#, scrivi un metodo che somma due interi.", "response": "```csharp\npublic static int Add(int a, int b) => a + b;\n```", "language": "csharp"}
+{"instruction": "In JavaScript, inverti una stringa.", "response": "```javascript\nconst reverse = s => [...s].reverse().join('');\n```", "language": "javascript"}
