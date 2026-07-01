@@ -1,0 +1,17 @@
+# configs/eval/eval_coding.yaml
+# Valutazione coding. 'exec_set' = problemi eseguibili (HumanEval-format, Python)
+# per pass@1 reale. 'qualitative_set' = prompt C#/JS/HTML/CSS senza esecuzione
+# (ispezione manuale + metriche testuali). Punta i path ai dataset reali quando
+# li scarichi; di default usa i campioni offline versionati.
+_base_: ../base.yaml
+
+eval_coding:
+  model_path: Qwen/Qwen2.5-Coder-1.5B-Instruct
+  adapter: ""                 # LoRA opzionale ("" = nessuno)
+  exec_set: data/eval/humaneval.sample.jsonl
+  qualitative_set: data/eval/coding_csharp_web.sample.jsonl
+  max_new_tokens: 512
+  temperature: 0.0
+  timeout_s: 8.0
+  output:
+    report_path: outputs/eval/coding_report.json

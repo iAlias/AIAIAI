@@ -15,6 +15,25 @@ SYSTEM_DEFAULT: str = (
     "lunghezza proporzionata alla domanda."
 )
 
+# System prompt per l'assistente di programmazione: diretto, codice corretto,
+# spiegazioni brevi, niente moralismi superflui.
+CODING_SYSTEM: str = (
+    "Sei un assistente esperto di programmazione: preciso, diretto e pratico. "
+    "Scrivi codice corretto, idiomatico e funzionante. "
+    "Mostra prima il codice, poi una spiegazione breve solo se utile. "
+    "Usa blocchi di codice con il linguaggio indicato. "
+    "Se mancano dettagli, assumi i default piu' ragionevoli e dichiarali in una riga. "
+    "Niente premesse inutili, niente disclaimer superflui: vai dritto alla soluzione."
+)
+
+
+def coding_system(languages: list[str] | None = None) -> str:
+    """System prompt per il coding; se passi dei linguaggi li dichiara esplicitamente."""
+    if not languages:
+        return CODING_SYSTEM
+    langs = ", ".join(languages)
+    return CODING_SYSTEM + f" Linguaggi principali dell'utente: {langs}."
+
 
 def build_messages(
     system: str | None,
