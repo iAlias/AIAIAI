@@ -116,31 +116,45 @@ After setup, measure the model's capabilities with the bundled evaluation suite:
 python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml
 ```
 
-This runs:
+This **automatically evaluates** the executable benchmark:
 
-1. **Executable benchmark** (`pass@1`): generates Python code for HumanEval problems and executes them in a sandbox. Produces a count of correct solutions.
-2. **Qualitative benchmark**: generates C#, JavaScript, HTML/CSS solutions to domain-specific prompts and inspects them manually or against heuristics.
+- **Executable benchmark** (`pass@1`): generates Python code for HumanEval problems and executes them in a sandbox. Produces pass/fail results.
 
-Output goes to `outputs/eval/coding_report.json`:
+For **qualitative inspection** (C#, JavaScript, HTML/CSS), the evaluation harness reads the fixture file (`data/eval/coding_csharp_web.sample.jsonl`) for reference only — it does **not** score these automatically. Instead, you inspect solutions manually:
+
+1. Generate responses separately (e.g., send prompts from the file to Ollama or your local model).
+2. Compare the model's responses against the `reference` field in the fixture.
+3. Use your judgment to assess correctness (heuristics, code review, domain knowledge).
+
+This is intentional: executable languages (Python) have unambiguous pass/fail signals via tests; non-executable domains (web stack) require human judgment.
+
+**Automated output** goes to `outputs/eval/coding_report.json`:
 
 ```json
 {
-  "pass@1": 0.35,
-  "qualitative": {
-    "domain": "csharp",
-    "checked": 10,
-    "acceptable": 7,
-    "mode": "generator"
-  },
-  "meta": {
-    "model": "Qwen2.5-Coder-1.5B-Instruct",
-    "adapter": "",
-    "timestamp": "2026-07-01T10:30:00Z"
-  }
+  "generation_mode": "generator",
+  "model_path": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+  "exec_set": "data/eval/humaneval.sample.jsonl",
+  "n_exec": 164,
+  "pass_at_1": 0.35,
+  "results": [
+    {
+      "task_id": "HumanEval/0",
+      "passed": true,
+      "error": null,
+      "attempts": null
+    },
+    {
+      "task_id": "HumanEval/1",
+      "passed": false,
+      "error": "AssertionError: expected 2 got 1",
+      "attempts": null
+    }
+  ]
 }
 ```
 
-**Important caveat:** If no real model is deployed (`mode: "mock"`), `pass@1` will be 0.0 and solutions are synthetic. This is fine for **validating the pipeline**; to get real metrics, set up a real model as above.
+**Important caveat:** If no real model is deployed (`generation_mode: "mock"`), `pass_at_1` will be 0.0 and solutions are synthetic. This is fine for **validating the pipeline**; to get real metrics, set up a real model as above.
 
 ---
 

@@ -9,6 +9,9 @@ eval_coding:
   model_path: Qwen/Qwen2.5-Coder-1.5B-Instruct
   adapter: ""                 # LoRA opzionale ("" = nessuno)
   exec_set: data/eval/humaneval.sample.jsonl
+  # qualitative_set: reference fixture for manual inspection (C#/JS/HTML/CSS).
+  # NOT consumed by run_coding_eval.py; user inspects solutions manually by comparing
+  # model responses against the "reference" field in this JSONL file.
   qualitative_set: data/eval/coding_csharp_web.sample.jsonl
   max_new_tokens: 512
   temperature: 0.0

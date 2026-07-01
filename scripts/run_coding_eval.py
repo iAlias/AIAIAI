@@ -71,12 +71,15 @@ def main(argv=None):
                 {
                     "task_id": prob.get("task_id"),
                     "passed": bool(outcome["passed"]),
+                    "error": None,
                     "attempts": outcome["attempts"],
                 }
             )
     else:
         # Use normal evaluation
-        results = code_eval.evaluate_coding(problems, predict_fn, timeout=timeout)
+        base_results = code_eval.evaluate_coding(problems, predict_fn, timeout=timeout)
+        # Add attempts=None to match repair schema
+        results = [{**r, "attempts": None} for r in base_results]
 
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
 
