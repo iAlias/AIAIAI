@@ -25,6 +25,12 @@ def main(argv=None):
     p.add_argument("--question", required=True)
     p.add_argument("--k", type=int, default=4)
     p.add_argument("--model", default="Qwen/Qwen2.5-Coder-1.5B-Instruct")
+    p.add_argument(
+        "--ollama-model",
+        default=None,
+        help="Nome di un modello gia' registrato in Ollama (usa questo invece di --model)",
+    )
+    p.add_argument("--ollama-host", default="http://localhost:11434")
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args(argv)
     setup_logging(args.log_level)
@@ -42,17 +48,22 @@ def main(argv=None):
                 "adapter": "",
                 "max_new_tokens": 512,
                 "temperature": 0.2,
+                "ollama_model": args.ollama_model,
+                "ollama_host": args.ollama_host,
             }
         }
     )
-    mode = predictor.init()
+    predictor.init()
     user = (
         f"Contesto dal codebase:\n{context}\n\nDomanda: {args.question}"
         if context
         else args.question
     )
     answer = predictor.predict(build_messages(coding_system(), user))
-    print(f"[mode={mode}]\n{answer}")
+    # predictor.mode e' riletto DOPO predict(): se il backend scelto in init()
+    # fallisce a runtime (es. Ollama irraggiungibile), predict() degrada al
+    # MockTeacher e aggiorna predictor.mode di conseguenza.
+    print(f"[mode={predictor.mode}]\n{answer}")
 
 
 if __name__ == "__main__":

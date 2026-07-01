@@ -3,11 +3,11 @@
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from italian_llm.config import get
-from italian_llm.logging_utils import get_logger
 from italian_llm.evaluation import metrics as M
+from italian_llm.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -92,9 +92,20 @@ class _Predictor:
         self.adapter = get(cfg, "eval.adapter")
         self.max_new_tokens = int(get(cfg, "eval.max_new_tokens", 512) or 512)
         self.temperature = float(get(cfg, "eval.temperature", 0.0) or 0.0)
-        self._gen = None          # Generator vero (creato lazy)
-        self._mock = None         # TeacherProvider di fallback
+        self.ollama_model = get(cfg, "eval.ollama_model")
+        self.ollama_host = get(cfg, "eval.ollama_host") or "http://localhost:11434"
+        self.ollama_timeout = float(get(cfg, "eval.ollama_timeout", 120.0) or 120.0)
+        self._gen = None  # Generator vero (creato lazy)
+        self._mock = None  # TeacherProvider di fallback
+        self._ollama_active = False
         self.mode = "uninit"
+
+    def _try_ollama(self):
+        if not self.ollama_model:
+            return False
+        self._ollama_active = True
+        self.mode = "ollama"
+        return True
 
     def _try_real(self):
         if self.model_path is None:
@@ -121,11 +132,26 @@ class _Predictor:
             self.mode = "mock"
 
     def init(self):
-        if not self._try_real():
+        if not self._try_ollama() and not self._try_real():
             self._ensure_mock()
         return self.mode
 
     def predict(self, messages) -> str:
+        # Path Ollama: modello gia' registrato in un'istanza Ollama locale.
+        if self._ollama_active:
+            try:
+                from italian_llm.serving.ollama_client import chat
+
+                return chat(
+                    self.ollama_model,
+                    messages,
+                    host=self.ollama_host,
+                    temperature=self.temperature,
+                    timeout=self.ollama_timeout,
+                )
+            except Exception as e:
+                logger.warning("Ollama non disponibile (%s); provo il generatore locale.", e)
+                self._ollama_active = False
         # Path veloce: generatore reale gia' attivo.
         if self._gen is not None:
             try:
@@ -176,7 +202,7 @@ def run_eval(cfg: dict) -> dict:
          over-refusal, pass@k per il coding) + statistiche di latenza;
       4. scrive il report in eval.report_path (o paths.eval_dir/eval_report.json).
     """
-    from italian_llm.utils.io import read_jsonl, ensure_dir
+    from italian_llm.utils.io import ensure_dir, read_jsonl
 
     eval_set = get(cfg, "eval.eval_set")
     if not eval_set:
@@ -294,7 +320,7 @@ def run_eval(cfg: dict) -> dict:
         agg["instruction_adherence"] = round(_mean(agg["instruction_adherence"]), 4)
 
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "eval_set": eval_set,
         "n_examples": len(records),
         "generation_mode": gen_mode,
