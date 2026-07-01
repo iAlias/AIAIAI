@@ -6,9 +6,18 @@
 > e' **staticamente valido e importabile anche senza GPU**: ogni componente pesante
 > ha un fallback **locale / sintetico / mock** funzionante.
 
+[![CI](https://github.com/iAlias/AIAIAI/actions/workflows/ci.yml/badge.svg)](https://github.com/iAlias/AIAIAI/actions/workflows/ci.yml)
+
 Lingua del prodotto: **italiano**. Lingua del codice: inglese. Identità del
 progetto: un assistente italiano **diretto, utile, poco verboso**, che **non
 moralizza** e **non rifiuta richieste lecite** (riduzione dell'over-refusal).
+
+> **Stato (luglio 2026).** Pipeline, test e lint verdi senza GPU. **Nessun peso
+> addestrato è ancora pubblicato**: i report in `outputs/` generati senza GPU
+> provengono da smoke run/mock (etichettati `generation_mode: mock`) e non
+> misurano un modello reale. L'unica valutazione con modello reale oggi
+> disponibile è la traccia coding via **Ollama**
+> (`configs/eval/eval_coding_ollama.yaml`).
 
 ---
 
@@ -86,11 +95,16 @@ python scripts/quantize_gguf.py --in <hf_model_dir> --out outputs/gguf/coder.q4_
 python scripts/export_ollama_coding.py --gguf outputs/gguf/coder.q4_k_m.gguf --name coder-local
 ollama run coder-local
 
-# Valuta il modello
-python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml
+# Valuta il modello reale via Ollama (pass@1, opzionale --repair 3)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama.yaml
+
+# RAG sul tuo codebase, FIM autocomplete, chat con memoria persistente
+python scripts/rag_ask.py --root src --question "..." --ollama-model coder-local
+python scripts/fim_complete.py --prefix "def add(a,b):\n    " --ollama-model coder-local
+python scripts/chat_learn.py --ollama-model coder-local
 ```
 
-Per dettagli completi, prompt, fine-tuning opzionale su Kaggle, e limiti onesti, vedi **[`docs/coding-model.md`](./docs/coding-model.md)**.
+Per dettagli completi, prompt, fine-tuning opzionale su Kaggle, e limiti onesti, vedi **[`docs/coding-model.md`](./docs/coding-model.md)**. Per il ciclo di **apprendimento continuo** (il modello impara da ogni domanda: memoria BM25 immediata + retrain periodico), vedi **[`docs/continuous-learning.md`](./docs/continuous-learning.md)**.
 
 ---
 
@@ -138,22 +152,31 @@ AIAIAI/
 ├── LICENSE                    # Apache 2.0
 ├── pyproject.toml             # metadata, src layout, ruff/black/pytest
 ├── requirements.txt           # dipendenze (core leggero + blocchi pesanti opzionali)
+├── constraints.txt            # versioni pinnate per install riproducibili (CI)
 ├── Makefile                   # orchestratore pipeline (make help)
 ├── .env.example               # variabili ambiente (teacher, HF, W&B, CUDA)
 ├── .gitignore
 │
 ├── configs/                   # configurazione YAML (con _base_ + deep merge)
 │   ├── base.yaml              # progetto, paths, model, logging
-│   ├── model/                 # definizioni modello + quantizzazione
-│   │   └── qwen.yaml
+│   ├── data/
+│   │   ├── corpus.yaml        # corpus CPT (pulizia, dedup, blocchi)
+│   │   └── sft.yaml           # dataset istruzione (split, sintesi)
+│   ├── model/
+│   │   ├── qwen9b.yaml        # base Qwen2.5-7B ("~9B", vedi ADR-001)
+│   │   ├── qwen_coder.yaml    # Qwen2.5-Coder per la traccia coding
+│   │   └── student_3b.yaml    # student di distillazione
 │   ├── train/
-│   │   ├── cpt.yaml           # Continued Pre-Training
-│   │   ├── sft.yaml           # Supervised Fine-Tuning (QLoRA)
-│   │   └── orpo.yaml          # preferenze (ORPO/DPO)
+│   │   ├── cpt_qwen9b.yaml    # Continued Pre-Training
+│   │   ├── sft_qwen9b_lora.yaml  # Supervised Fine-Tuning (QLoRA)
+│   │   ├── sft_coder.yaml     # SFT del coder locale
+│   │   └── orpo_qwen9b.yaml   # preferenze (ORPO/DPO)
 │   ├── distill/
 │   │   └── student_3b.yaml    # distillazione verso student 3B
 │   ├── eval/
-│   │   └── eval.yaml          # set + metriche di valutazione
+│   │   ├── eval.yaml          # set + metriche di valutazione
+│   │   ├── eval_coding.yaml   # eval coding (mock/transformers)
+│   │   └── eval_coding_ollama.yaml  # eval coding con modello reale via Ollama
 │   └── serving/
 │       └── vllm.yaml          # serving vLLM
 │
@@ -161,52 +184,48 @@ AIAIAI/
 │   ├── config.py              # load_config / deep_merge / get / dump_config
 │   ├── logging_utils.py       # setup_logging / get_logger
 │   ├── tokenizer_utils.py     # load_tokenizer / format_chat
-│   ├── utils/
-│   │   ├── io.py              # read_jsonl / write_jsonl / ensure_dir
-│   │   └── seed.py            # set_seed
-│   ├── data/
-│   │   ├── schema.py          # SFTExample / PreferenceExample / validate_*
-│   │   ├── prompts.py         # SYSTEM_DEFAULT / build_messages / render_plain / SYNTH_PROMPTS
-│   │   ├── cleaning.py        # normalize / language / quality / dedup
-│   │   └── synthetic.py       # TeacherProvider + Mock/OpenAICompat/HFLocal
-│   ├── training/
-│   │   ├── common.py          # load_model_and_tokenizer / bnb / lora
-│   │   ├── cpt.py             # run_cpt
-│   │   ├── sft.py             # run_sft
-│   │   └── preference.py      # run_preference (ORPO/DPO)
-│   ├── distillation/
-│   │   ├── data_distill.py    # build_distill_dataset
-│   │   └── logits_distill.py  # run_logits_distill (sperimentale)
-│   ├── evaluation/
-│   │   ├── metrics.py         # aderenza / italianita' / verbosita' / refusal / rouge / pass@k
-│   │   └── runner.py          # run_eval
-│   ├── serving/
-│   │   └── inference.py       # Generator
-│   └── safety/
-│       └── policy.py          # classify_request / should_refuse / safe completion
+│   ├── utils/                 # io (read/write_jsonl), seed
+│   ├── data/                  # schema, prompts, cleaning, synthetic (teacher)
+│   ├── training/              # common, cpt, sft, preference (ORPO/DPO)
+│   ├── distillation/          # data_distill, logits_distill (sperimentale)
+│   ├── evaluation/            # metrics, runner, code_exec, code_eval, self_repair
+│   ├── serving/               # inference, fim, ollama_client
+│   ├── rag/                   # code_index (BM25 stdlib sul codebase)
+│   ├── memory/                # interaction_log (apprendimento continuo)
+│   └── safety/                # policy anti over-refusal
 │
 ├── scripts/                   # CLI sottili (argparse) — vedi Makefile
-│   ├── build_corpus.py        # [1] corpus CPT
-│   ├── build_sft_data.py      # [2] dataset SFT
-│   ├── synthesize.py          # [3] generazione sintetica (teacher)
-│   ├── train_cpt.py           # [4]
-│   ├── train_sft.py           # [5]
-│   ├── train_preference.py    # [6]
-│   ├── run_distill.py         # distillazione
-│   ├── run_eval.py            # [7] valutazione
-│   ├── infer.py               # inferenza CLI
-│   └── serve.py               # serving
+│   ├── download_open_data.py            # [0] dati grezzi (fallback sintetico)
+│   ├── build_italian_corpus.py          # [1] corpus CPT
+│   ├── clean_dedup_filter.py            # [1b] pulizia profonda + dedup
+│   ├── prepare_continued_pretraining_data.py  # [1c] blocchi CPT
+│   ├── create_instruction_dataset.py    # [2a] istruzioni dal corpus
+│   ├── prepare_sft_data.py              # [2] dataset SFT (train/valid/test)
+│   ├── synthesize_with_teachers.py      # [3] generazione sintetica (teacher)
+│   ├── train_cpt.py                     # [4]
+│   ├── train_sft.py                     # [5]
+│   ├── train_dpo_or_orpo.py             # [6]
+│   ├── distill_student.py               # distillazione
+│   ├── evaluate_all.py                  # [7] valutazione
+│   ├── run_inference.py                 # inferenza CLI
+│   ├── launch_vllm.sh                   # serving vLLM
+│   ├── export_model.py / quantize_gguf.py / export_ollama_coding.py
+│   ├── build_coding_sft.py / run_coding_eval.py   # traccia coding
+│   ├── rag_ask.py / fim_complete.py / chat_learn.py  # RAG, FIM, memoria
+│   └── bootstrap_project.sh / setup_env.sh
 │
 ├── docs/                      # documentazione approfondita (vedi sotto)
-├── tests/                     # test pytest (moduli puri + smoke)
+├── notebooks/                 # ispezione dataset, report eval, QLoRA su Kaggle
+├── tests/                     # test pytest (moduli puri + smoke, niente GPU)
 │
 ├── data/
-│   ├── raw/.gitkeep           # corpora grezzi (ignorati da git)
-│   ├── interim/.gitkeep       # intermedi (ignorati)
-│   ├── processed/.gitkeep     # dataset pronti (campioni *.sample.jsonl versionati)
-│   └── *.sample.jsonl         # piccoli campioni di esempio (versionati)
+│   ├── raw/ interim/          # corpora grezzi e intermedi (ignorati da git)
+│   ├── processed/ synthetic/  # output generati (ignorati; campioni *.sample.jsonl versionati)
+│   ├── memory/                # log interazioni chat_learn (ignorato: privacy)
+│   ├── eval/                  # set di valutazione versionati
+│   └── manifests/sources.yaml # sorgenti corpus
 │
-└── outputs/.gitkeep           # checkpoint, adapter, report (ignorati da git)
+└── outputs/                   # checkpoint, adapter, report (ignorati da git)
 ```
 
 > I percorsi `data/raw`, `data/interim`, `outputs/*` e i pesi binari
@@ -253,8 +272,8 @@ Ogni target del `Makefile` invoca lo script corrispondente con una config di
 default in `configs/`. Puoi sovrascrivere la config, es:
 
 ```bash
-make sft CFG_SFT=configs/train/sft.yaml
-python scripts/train_sft.py --config configs/train/sft.yaml
+make sft CFG_SFT=configs/train/sft_qwen9b_lora.yaml
+python scripts/train_sft.py --config configs/train/sft_qwen9b_lora.yaml
 ```
 
 ---
@@ -295,17 +314,19 @@ Note pratiche:
    dedup          italianità      reale        dominio                          + report
 ```
 
-1. **Corpus (CPT)** — `make corpus` → `scripts/build_corpus.py`.
+1. **Corpus (CPT)** — `make corpus` → `scripts/build_italian_corpus.py`
+   (più `make clean-data` → `scripts/clean_dedup_filter.py` e `make cpt-data` →
+   `scripts/prepare_continued_pretraining_data.py`).
    Raccolta e pulizia del testo italiano: normalizzazione Unicode, rimozione
    boilerplate, filtro lingua (`is_italian`), scoring qualità, dedup esatta/near.
    Output in `data/processed/`.
 
-2. **SFT-data** — `make sft-data` → `scripts/build_sft_data.py`.
+2. **SFT-data** — `make sft-data` → `scripts/prepare_sft_data.py`.
    Costruzione del dataset istruzione in **formato chat JSONL** secondo lo schema:
    `{"id","source_type","domain","difficulty","messages":[...],"quality_score",
    "safety_tag","italian_score","teacher_name"}`. Validazione con `validate_jsonl`.
 
-3. **Synth** — `make synth` → `scripts/synthesize.py`.
+3. **Synth** — `make synth` → `scripts/synthesize_with_teachers.py`.
    Generazione sintetica di istruzioni/risposte tramite i **teacher**
    (`MockTeacher` di default, `OpenAICompatTeacher`, `HFLocalTeacher`). Supporta
    `majority_rank` multi-teacher per la traccia V2. Nessuna rete richiesta col mock.
@@ -318,12 +339,12 @@ Note pratiche:
    Supervised Fine-Tuning in formato chat con **QLoRA 4-bit** (PEFT). Loop leggibile,
    logging essenziale, salvataggio adapter in `outputs/`.
 
-6. **ORPO / preferenze** — `make orpo` → `scripts/train_preference.py` (`run_preference`).
+6. **ORPO / preferenze** — `make orpo` → `scripts/train_dpo_or_orpo.py` (`run_preference`).
    Allineamento allo **stile** e alle preferenze: **ORPO** (single-stage, default,
    via `trl`) oppure **DPO**. Dataset di preferenze in formato `{"prompt","chosen",
    "rejected","meta"}`.
 
-7. **Eval** — `make eval` → `scripts/run_eval.py` (`run_eval`).
+7. **Eval** — `make eval` → `scripts/evaluate_all.py` (`run_eval`).
    Valutazione orientata al prodotto: **aderenza** alle istruzioni, **italianità**,
    **verbosità**, **refusal/over-refusal**, **ROUGE-L**, **pass@k** coding. Produce un
    report in `outputs/`.
@@ -405,18 +426,15 @@ TEACHER_PROVIDER=openai_compat make synth
 
 La documentazione approfondita vive in `docs/`:
 
-- `docs/architecture.md` — architettura del sistema, flusso dati, contratti dei moduli.
-- `docs/data.md` — schema dati, pulizia, qualità/italianità, dedup, formati JSONL.
-- `docs/training.md` — CPT, SFT, QLoRA, preferenze ORPO/DPO, iperparametri.
-- `docs/distillation.md` — data vs logits distillation, limiti del logits distill.
-- `docs/evaluation.md` — metriche, set di valutazione, interpretazione dei report.
-- `docs/serving.md` — inferenza, vLLM, fallback transformers.
-- `docs/safety.md` — filosofia anti over-refusal, classificazione richieste, template.
-- `docs/hardware.md` — dettaglio profili, stime VRAM/tempi, consigli pratici.
-- `docs/roadmap.md` — piano a 30 giorni esteso.
-
-> Se una pagina non è ancora presente nel tuo checkout, i contenuti chiave sono
-> comunque riassunti in questo README e nei docstring dei moduli.
+- [`docs/architecture.md`](./docs/architecture.md) — architettura, flusso dati, contratti dei moduli.
+- [`docs/dataset-plan.md`](./docs/dataset-plan.md) — schema dati, pulizia, qualità/italianità, dedup, formati JSONL.
+- [`docs/training-plan.md`](./docs/training-plan.md) — CPT, SFT, QLoRA, preferenze ORPO/DPO, iperparametri.
+- [`docs/distillation-plan.md`](./docs/distillation-plan.md) — data vs logits distillation e limiti.
+- [`docs/evaluation-plan.md`](./docs/evaluation-plan.md) — metriche, set di valutazione, interpretazione dei report.
+- [`docs/coding-model.md`](./docs/coding-model.md) — assistente coding locale: uso, eval, RAG, self-repair, FIM.
+- [`docs/continuous-learning.md`](./docs/continuous-learning.md) — memoria delle interazioni + retrain periodico.
+- [`docs/operations.md`](./docs/operations.md) — operatività: ambienti, hardware, serving, troubleshooting.
+- [`docs/decisions.md`](./docs/decisions.md) — registro ADR di tutte le decisioni architetturali.
 
 ---
 
