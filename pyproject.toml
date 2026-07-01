@@ -77,9 +77,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/restore-shopping/italian-llm"
-Documentation = "https://github.com/restore-shopping/italian-llm/tree/main/docs"
-Repository = "https://github.com/restore-shopping/italian-llm"
+Homepage = "https://github.com/iAlias/AIAIAI"
+Documentation = "https://github.com/iAlias/AIAIAI/tree/main/docs"
+Repository = "https://github.com/iAlias/AIAIAI"
 
 # ---------------------------------------------------------------------------
 # setuptools: src layout

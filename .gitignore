@@ -70,9 +70,13 @@ Thumbs.db
 *.key
 *.pem
 
-# --- Dati pesanti (corpora grezzi e intermedi) ----------------------------
+# --- Dati pesanti (corpora grezzi, intermedi e output generati) -----------
 data/raw/*
 data/interim/*
+data/processed/*
+data/synthetic/*
+# Memoria delle interazioni utente (privacy: mai in git)
+data/memory/*
 # Manteniamo i placeholder e i campioni versionati:
 !data/raw/.gitkeep
 !data/interim/.gitkeep
