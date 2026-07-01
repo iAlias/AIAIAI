@@ -28,6 +28,8 @@ def _make_predictor(cfg: dict):
             "adapter": get(cfg, "eval_coding.adapter", ""),
             "max_new_tokens": get(cfg, "eval_coding.max_new_tokens", 512),
             "temperature": get(cfg, "eval_coding.temperature", 0.0),
+            "ollama_model": get(cfg, "eval_coding.ollama_model"),
+            "ollama_host": get(cfg, "eval_coding.ollama_host"),
         }
     }
     pred = _Predictor(sub)
@@ -39,7 +41,7 @@ def _make_predictor(cfg: dict):
         messages = build_messages(coding_system(), prompt)
         return pred.predict(messages)
 
-    return predict_fn, pred.mode
+    return predict_fn, pred
 
 
 def main(argv=None):
@@ -53,8 +55,8 @@ def main(argv=None):
     setup_logging(args.log_level)
     cfg = load_config(args.config)
 
-    predict_fn, mode = _make_predictor(cfg)
-    logger.info("Predizioni in modalita': %s", mode)
+    predict_fn, pred = _make_predictor(cfg)
+    logger.info("Predizioni in modalita' iniziale: %s", pred.mode)
 
     exec_set = get(cfg, "eval_coding.exec_set")
     timeout = float(get(cfg, "eval_coding.timeout_s", 8.0))
@@ -82,9 +84,14 @@ def main(argv=None):
         results = [{**r, "attempts": None} for r in base_results]
 
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
+    # pred.mode e' riletto DOPO tutte le predizioni: se il backend scelto in
+    # init() (ollama/generator) e' fallito a runtime su qualche chiamata, il
+    # fallback al MockTeacher ha gia' aggiornato pred.mode di conseguenza, cosi'
+    # il report non dichiara un backend che in realta' non ha generato nulla.
+    final_mode = pred.mode
 
     report = {
-        "generation_mode": mode,
+        "generation_mode": final_mode,
         "model_path": get(cfg, "eval_coding.model_path"),
         "exec_set": exec_set,
         "n_exec": len(results),
@@ -95,8 +102,8 @@ def main(argv=None):
     ensure_dir(os.path.dirname(report_path) or ".")
     with open(report_path, "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=2)
-    logger.info("pass@1 = %.4f (mode=%s). Report: %s", pass_at_1, mode, report_path)
-    print(json.dumps({"pass_at_1": report["pass_at_1"], "mode": mode}, ensure_ascii=False))
+    logger.info("pass@1 = %.4f (mode=%s). Report: %s", pass_at_1, final_mode, report_path)
+    print(json.dumps({"pass_at_1": report["pass_at_1"], "mode": final_mode}, ensure_ascii=False))
     return report
 
 

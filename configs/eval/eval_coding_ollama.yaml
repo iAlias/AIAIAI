@@ -1,0 +1,10 @@
+# configs/eval/eval_coding_ollama.yaml
+# Come eval_coding.yaml, ma genera via un'istanza Ollama locale gia' in esecuzione
+# (es. il modello 'coder-local' creato con scripts/export_ollama_coding.py) invece
+# di caricare i pesi via transformers/torch. Utile quando hai gia' Ollama con un
+# modello pronto e non vuoi installare torch/transformers su questa macchina.
+_base_: eval_coding.yaml
+
+eval_coding:
+  ollama_model: coder-local
+  ollama_host: http://localhost:11434
