@@ -66,7 +66,7 @@ def write_jsonl(path: str, rows: Iterable[dict]) -> int:
     """
     ensure_dir(path)
     count = 0
-    with open(path, "w", encoding="utf-8") as fh:
+    with open(path, "w", encoding="utf-8", newline=chr(10)) as fh:
         for row in rows:
             if not isinstance(row, dict):
                 logger.warning("Record non-dict ignorato in scrittura su '%s': %r", path, type(row))

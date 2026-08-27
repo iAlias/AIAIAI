@@ -44,3 +44,16 @@ def test_predictor_without_ollama_model_behaves_as_before():
     mode = pred.init()
 
     assert mode == "mock"
+
+
+def test_predictor_passes_max_tokens_and_timeout_to_ollama():
+    cfg = {"eval": {"ollama_model": "coder-local", "max_new_tokens": 256, "ollama_timeout": 300}}
+    pred = _Predictor(cfg)
+    pred.init()
+
+    with patch("italian_llm.serving.ollama_client.chat", return_value="ok") as mock_chat:
+        pred.predict([{"role": "user", "content": "ciao"}])
+
+    _, kwargs = mock_chat.call_args
+    assert kwargs["max_tokens"] == 256
+    assert kwargs["timeout"] == 300.0

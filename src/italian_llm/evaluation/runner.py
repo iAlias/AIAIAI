@@ -149,6 +149,7 @@ class _Predictor:
                     messages,
                     host=self.ollama_host,
                     temperature=self.temperature,
+                    max_tokens=self.max_new_tokens,
                     timeout=self.ollama_timeout,
                 )
             except Exception as e:

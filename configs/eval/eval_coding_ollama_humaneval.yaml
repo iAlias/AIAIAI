@@ -1,0 +1,12 @@
+# configs/eval/eval_coding_ollama_humaneval.yaml
+# Baseline reale: HumanEval completo (164 problemi Python, licenza MIT, OpenAI)
+# generato da un modello locale via Ollama. Su CPU aspettati ~40-60 s a problema.
+# Il report conserva le risposte grezze del modello ('raw') per poterle
+# ri-valutare offline senza rigenerare.
+_base_: eval_coding_ollama.yaml
+
+eval_coding:
+  exec_set: data/eval/humaneval.jsonl
+  ollama_timeout: 600
+  output:
+    report_path: outputs/eval/coding_report_humaneval.json
