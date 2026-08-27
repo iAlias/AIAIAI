@@ -38,7 +38,9 @@ def set_seed(seed: int) -> None:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
-        logger.debug("Seed torch impostato a %d (cuda disponibile: %s).", seed, torch.cuda.is_available())
+        logger.debug(
+            "Seed torch impostato a %d (cuda disponibile: %s).", seed, torch.cuda.is_available()
+        )
     except Exception:  # pragma: no cover - torch assente su questo host
         logger.debug("torch non disponibile: seeding torch saltato.")
 

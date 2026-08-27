@@ -108,6 +108,25 @@ ollama run coder-local
 
 ---
 
+## Quick Commands (Ollama, copy-paste)
+
+With Ollama running (`ollama list` to check) and `coder-local` registered (or use `qwen2.5-coder:1.5b`):
+
+```bash
+# pass@1 eval against the real model via Ollama
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama.yaml
+
+# same eval with self-repair (up to 3 attempts)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama.yaml --repair 3
+
+# RAG over your codebase
+python scripts/rag_ask.py --root src --question "come e' strutturata la classe CodeIndex per il BM25?" --ollama-model coder-local
+```
+
+Note: CPU-only inference is slow (~40–60 s per question with the 1.5B model). Change `--root` to point RAG at a different folder.
+
+---
+
 ## Measure It: Evaluation
 
 After setup, measure the model's capabilities with the bundled evaluation suite:
@@ -279,6 +298,8 @@ python scripts/rag_ask.py \
 - `--question`: Your question (required)
 - `--k`: Number of code chunks to retrieve (default: 4)
 - `--model`: HuggingFace model identifier (default: `Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+- `--ollama-model`: Use a local Ollama model instead of transformers (e.g., `coder-local`) — no torch needed
+- `--ollama-host`: Ollama server URL (default: `http://localhost:11434`)
 
 ---
 
@@ -318,6 +339,14 @@ python scripts/run_coding_eval.py \
 Use **Fill-In-The-Middle (FIM)** for in-context code completion:
 
 ```bash
+# Via Ollama (recommended: no torch needed, works on this host)
+python scripts/fim_complete.py \
+  --prefix "def calculate_sum(arr):" \
+  --suffix "return result" \
+  --ollama-model coder-local \
+  --max-new-tokens 128
+
+# Via transformers (requires torch + local HF model)
 python scripts/fim_complete.py \
   --prefix "def calculate_sum(arr):" \
   --suffix "return result" \
@@ -339,10 +368,12 @@ python scripts/fim_complete.py \
 **Parameters:**
 - `--prefix`: Code before the cursor (required)
 - `--suffix`: Code after the cursor (default: empty string)
-- `--model`: HuggingFace model identifier (default: `Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+- `--ollama-model`: Use a model registered in Ollama via `/api/generate` raw mode (e.g., `coder-local`) — no torch required
+- `--ollama-host`: Ollama server URL (default: `http://localhost:11434`)
+- `--model`: HuggingFace model identifier for the transformers backend (default: `Qwen/Qwen2.5-Coder-1.5B-Instruct`)
 - `--max-new-tokens`: Maximum tokens to generate (default: 128)
 
-**Requirement:** FIM requires `transformers` and a local copy of the model (GPU or CPU with model downloaded). It does **not** work with remote Ollama servers; it must run on the same machine where the model is loaded.
+**Requirement:** with `--ollama-model`, only a running Ollama instance is needed. The transformers backend requires `torch` and a local copy of the model weights. Note: FIM raw mode works with base/coder GGUF models that kept their FIM special tokens (`qwen2.5-coder` does).
 
 ---
 

@@ -9,7 +9,7 @@ import json
 import urllib.error
 import urllib.request
 
-__all__ = ["OllamaError", "chat"]
+__all__ = ["OllamaError", "chat", "generate"]
 
 
 class OllamaError(Exception):
@@ -54,3 +54,49 @@ def chat(
     if not isinstance(message, dict) or "content" not in message:
         raise OllamaError(f"Risposta Ollama inattesa: {body!r}")
     return message["content"]
+
+
+def generate(
+    model: str,
+    prompt: str,
+    *,
+    host: str = "http://localhost:11434",
+    temperature: float = 0.0,
+    max_tokens: int | None = None,
+    raw: bool = True,
+    timeout: float = 60.0,
+) -> str:
+    """Chiama /api/generate (completion pura, no template chat) e ritorna il testo.
+
+    Con raw=True il prompt arriva al modello senza template: necessario per il
+    FIM, dove i token speciali (<|fim_prefix|>...) devono restare intatti.
+    """
+    options: dict = {"temperature": temperature}
+    if max_tokens is not None:
+        options["num_predict"] = max_tokens
+    payload = json.dumps(
+        {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "raw": raw,
+            "options": options,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"{host}/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError) as e:
+        raise OllamaError(f"Ollama non raggiungibile ({host}): {e}") from e
+    except json.JSONDecodeError as e:
+        raise OllamaError(f"Risposta Ollama non valida (JSON): {e}") from e
+
+    response = body.get("response")
+    if not isinstance(response, str):
+        raise OllamaError(f"Risposta Ollama inattesa: {body!r}")
+    return response

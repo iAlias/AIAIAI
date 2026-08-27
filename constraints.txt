@@ -1,0 +1,16 @@
+# ===========================================================================
+# constraints.txt — versioni PINNATE e verificate per install riproducibili.
+# Usate dalla CI e consigliate in locale per il set "leggero" (moduli puri,
+# test, lint). Le dipendenze pesanti (torch, transformers, vllm, ...) restano
+# in requirements.txt con range: si pinnano nell'ambiente GPU di training.
+#
+# Uso:
+#   pip install -e ".[dev]" numpy requests pydantic -c constraints.txt
+# ===========================================================================
+pyyaml==6.0.3
+numpy==2.4.4
+requests==2.32.5
+pydantic==2.9.2
+pytest==8.3.3
+ruff==0.15.20
+black==26.5.1

@@ -1,0 +1,41 @@
+# CI leggera: lint + format check + test dei moduli puri (niente GPU/torch).
+# Le dipendenze sono pinnate via constraints.txt per build riproducibili.
+# Matrice 3.12/3.13: il pin numpy 2.4.x non pubblica wheel per 3.11.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+
+      - name: Install (light, pinned)
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]" numpy requests pydantic -c constraints.txt
+
+      - name: Lint (ruff)
+        run: ruff check src scripts tests
+
+      - name: Format check (black)
+        run: black --check src scripts tests
+
+      - name: Tests
+        run: pytest -q

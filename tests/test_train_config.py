@@ -57,8 +57,16 @@ def test_train_config_resolves_base_and_required_keys(path):
 
     # Sezione train: tutte le chiavi previste dallo schema dei config.
     train_keys = (
-        "output_dir", "epochs", "lr", "batch_size", "grad_accum", "max_seq_len",
-        "warmup_ratio", "weight_decay", "logging_steps", "save_steps",
+        "output_dir",
+        "epochs",
+        "lr",
+        "batch_size",
+        "grad_accum",
+        "max_seq_len",
+        "warmup_ratio",
+        "weight_decay",
+        "logging_steps",
+        "save_steps",
         "gradient_checkpointing",
     )
     for key in train_keys:

@@ -1,7 +1,6 @@
 """Smoke test della pipeline dati: cleaning + schema (solo stdlib + il pacchetto)."""
 
-from italian_llm.data import cleaning
-from italian_llm.data import schema
+from italian_llm.data import cleaning, schema
 
 # Testi di riferimento: uno chiaramente italiano (denso di stopword), uno inglese.
 ITALIAN_TEXT = (

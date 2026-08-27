@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 """CLI per fondere un adapter LoRA nel modello base e salvare un modello HF unificato."""
 
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import argparse
 
-from italian_llm.logging_utils import setup_logging, get_logger
+from italian_llm.logging_utils import get_logger, setup_logging
 from italian_llm.utils.io import ensure_dir
 
 logger = get_logger(__name__)
@@ -16,7 +19,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Fonde (merge) un adapter LoRA nel modello base e salva i pesi HF risultanti.",
     )
     p.add_argument("--base", required=True, help="Modello base HF (nome o percorso locale).")
-    p.add_argument("--adapter", required=True, help="Directory dell'adapter LoRA (PEFT) da fondere.")
+    p.add_argument(
+        "--adapter", required=True, help="Directory dell'adapter LoRA (PEFT) da fondere."
+    )
     p.add_argument("--out", required=True, help="Directory di output per il modello fuso.")
     p.add_argument(
         "--dtype",
@@ -66,9 +71,13 @@ def main(argv: list[str] | None = None) -> str:
     if not os.path.isdir(args.adapter):
         raise SystemExit(f"Directory adapter non trovata: '{args.adapter}'.")
 
-    dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16, "float32": torch.float32}[args.dtype]
+    dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16, "float32": torch.float32}[
+        args.dtype
+    ]
 
-    logger.info("Carico modello base '%s' (dtype=%s, device=%s)...", args.base, args.dtype, args.device)
+    logger.info(
+        "Carico modello base '%s' (dtype=%s, device=%s)...", args.base, args.dtype, args.device
+    )
     model = AutoModelForCausalLM.from_pretrained(
         args.base,
         torch_dtype=dtype,
@@ -94,7 +103,9 @@ def main(argv: list[str] | None = None) -> str:
         tok.save_pretrained(args.out)
         logger.info("Tokenizer salvato accanto al modello fuso.")
     except Exception as exc:  # tokenizer assente non e' fatale per i pesi
-        logger.warning("Impossibile salvare il tokenizer (%s). Copialo manualmente se necessario.", exc)
+        logger.warning(
+            "Impossibile salvare il tokenizer (%s). Copialo manualmente se necessario.", exc
+        )
 
     logger.info("Export completato: %s", args.out)
     print(args.out)

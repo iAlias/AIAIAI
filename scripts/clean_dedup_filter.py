@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -48,11 +49,17 @@ def clean(config_path: str, in_path: str | None, out_path: str | None) -> dict:
     do_boilerplate = bool(f.get("remove_boilerplate", True))
     do_normalize = bool(f.get("normalize_unicode", True))
 
-    in_file = _abspath(in_path or get(cfg, "corpus.output.interim_path", "data/interim/corpus.jsonl"))
-    out_file = _abspath(out_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl"))
+    in_file = _abspath(
+        in_path or get(cfg, "corpus.output.interim_path", "data/interim/corpus.jsonl")
+    )
+    out_file = _abspath(
+        out_path or get(cfg, "corpus.output.processed_path", "data/processed/corpus.jsonl")
+    )
 
     if not os.path.isfile(in_file):
-        logger.error("Corpus intermedio non trovato: %s (esegui prima build_italian_corpus.py).", in_file)
+        logger.error(
+            "Corpus intermedio non trovato: %s (esegui prima build_italian_corpus.py).", in_file
+        )
         return {"input": 0, "kept": 0}
 
     stats = {
@@ -66,8 +73,14 @@ def clean(config_path: str, in_path: str | None, out_path: str | None) -> dict:
     }
 
     logger.info("Pulizia corpus: input=%s output=%s", in_file, out_file)
-    logger.info("Filtri: min=%d max=%d italian>=%.2f quality>=%.2f near=%.2f",
-                min_chars, max_chars, italian_threshold, quality_min, dedup_threshold)
+    logger.info(
+        "Filtri: min=%d max=%d italian>=%.2f quality>=%.2f near=%.2f",
+        min_chars,
+        max_chars,
+        italian_threshold,
+        quality_min,
+        dedup_threshold,
+    )
 
     survivors = []
     for rec in read_jsonl(in_file):
@@ -106,7 +119,9 @@ def clean(config_path: str, in_path: str | None, out_path: str | None) -> dict:
         stats["drop_dedup_exact"] = before - len(survivors)
     if do_dedup_near:
         before = len(survivors)
-        survivors = dedup_near(survivors, key=lambda r: r.get("text", ""), threshold=dedup_threshold)
+        survivors = dedup_near(
+            survivors, key=lambda r: r.get("text", ""), threshold=dedup_threshold
+        )
         stats["drop_dedup_near"] = before - len(survivors)
 
     stats["kept"] = write_jsonl(out_file, survivors)
@@ -122,10 +137,18 @@ def clean(config_path: str, in_path: str | None, out_path: str | None) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Filtra e deduplica il corpus intermedio verso data/processed.")
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s).")
-    parser.add_argument("--in", dest="in_path", default=None, help="Corpus intermedio (default da config).")
-    parser.add_argument("--out", default=None, help="Corpus processato (default: data/processed/corpus.jsonl).")
+    parser = argparse.ArgumentParser(
+        description="Filtra e deduplica il corpus intermedio verso data/processed."
+    )
+    parser.add_argument(
+        "--config", default=DEFAULT_CONFIG, help="YAML del corpus (default: %(default)s)."
+    )
+    parser.add_argument(
+        "--in", dest="in_path", default=None, help="Corpus intermedio (default da config)."
+    )
+    parser.add_argument(
+        "--out", default=None, help="Corpus processato (default: data/processed/corpus.jsonl)."
+    )
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
 

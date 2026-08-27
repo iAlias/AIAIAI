@@ -23,9 +23,14 @@ def _resolve_dtype(dtype):
     if not isinstance(dtype, str):
         return dtype  # gia' un torch.dtype
     mapping = {
-        "float16": torch.float16, "fp16": torch.float16, "half": torch.float16,
-        "bfloat16": torch.bfloat16, "bf16": torch.bfloat16,
-        "float32": torch.float32, "fp32": torch.float32, "float": torch.float32,
+        "float16": torch.float16,
+        "fp16": torch.float16,
+        "half": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "bf16": torch.bfloat16,
+        "float32": torch.float32,
+        "fp32": torch.float32,
+        "float": torch.float32,
         "auto": None,
     }
     return mapping.get(dtype.lower(), None)
@@ -47,8 +52,17 @@ class Generator:
       I restanti kw sono usati come default di generazione.
     """
 
-    def __init__(self, model_path, adapter=None, merge_adapter=True, device=None,
-                 dtype="bfloat16", load_in_4bit=False, trust_remote_code=True, **gen_kw):
+    def __init__(
+        self,
+        model_path,
+        adapter=None,
+        merge_adapter=True,
+        device=None,
+        dtype="bfloat16",
+        load_in_4bit=False,
+        trust_remote_code=True,
+        **gen_kw,
+    ):
         self.model_path = model_path
         self.adapter = adapter
         self.merge_adapter = merge_adapter
@@ -105,8 +119,9 @@ class Generator:
             except Exception as e:  # pragma: no cover
                 logger.warning("4-bit non disponibile (%s); carico in precisione piena.", e)
 
-        logger.info("Carico modello da %s (device=%s, dtype=%s)",
-                    self.model_path, self.device, torch_dtype)
+        logger.info(
+            "Carico modello da %s (device=%s, dtype=%s)", self.model_path, self.device, torch_dtype
+        )
         model = AutoModelForCausalLM.from_pretrained(self.model_path, **model_kwargs)
 
         # Adapter PEFT opzionale.

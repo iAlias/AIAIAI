@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
 from italian_llm.logging_utils import get_logger
 
@@ -14,30 +14,170 @@ logger = get_logger(__name__)
 # Stopword italiane frequenti: segnale forte e poco costoso per la lingua.
 ITALIAN_STOPWORDS: frozenset[str] = frozenset(
     {
-        "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "di", "a", "da",
-        "in", "con", "su", "per", "tra", "fra", "del", "dello", "della", "dei",
-        "degli", "delle", "al", "allo", "alla", "ai", "agli", "alle", "dal",
-        "dallo", "dalla", "dai", "dagli", "dalle", "nel", "nello", "nella",
-        "nei", "negli", "nelle", "sul", "sullo", "sulla", "sui", "sugli",
-        "sulle", "e", "ed", "o", "od", "ma", "se", "perche", "perche'", "come",
-        "anche", "non", "piu", "piu'", "molto", "che", "chi", "cui", "dove",
-        "quando", "mentre", "quindi", "infatti", "ora", "poi", "gia", "gia'",
-        "ancora", "sempre", "mai", "io", "tu", "lui", "lei", "noi", "voi",
-        "loro", "mi", "ti", "ci", "vi", "si", "ne", "lo", "questo", "questa",
-        "questi", "queste", "quello", "quella", "quelli", "quelle", "suo",
-        "sua", "mio", "mia", "tuo", "tua", "nostro", "vostro", "essere", "sono",
-        "sei", "siamo", "siete", "era", "erano", "stato", "stata", "avere",
-        "ho", "hai", "ha", "abbiamo", "avete", "hanno", "fare", "fa", "fanno",
-        "puo", "puo'", "deve", "essere", "stato", "molto", "tutto", "tutti",
-        "ogni", "alcuni", "nessuno", "senza", "sotto", "sopra", "verso",
-        "presso", "dopo", "prima", "durante",
+        "il",
+        "lo",
+        "la",
+        "i",
+        "gli",
+        "le",
+        "un",
+        "uno",
+        "una",
+        "di",
+        "a",
+        "da",
+        "in",
+        "con",
+        "su",
+        "per",
+        "tra",
+        "fra",
+        "del",
+        "dello",
+        "della",
+        "dei",
+        "degli",
+        "delle",
+        "al",
+        "allo",
+        "alla",
+        "ai",
+        "agli",
+        "alle",
+        "dal",
+        "dallo",
+        "dalla",
+        "dai",
+        "dagli",
+        "dalle",
+        "nel",
+        "nello",
+        "nella",
+        "nei",
+        "negli",
+        "nelle",
+        "sul",
+        "sullo",
+        "sulla",
+        "sui",
+        "sugli",
+        "sulle",
+        "e",
+        "ed",
+        "o",
+        "od",
+        "ma",
+        "se",
+        "perche",
+        "perche'",
+        "come",
+        "anche",
+        "non",
+        "piu",
+        "piu'",
+        "molto",
+        "che",
+        "chi",
+        "cui",
+        "dove",
+        "quando",
+        "mentre",
+        "quindi",
+        "infatti",
+        "ora",
+        "poi",
+        "gia",
+        "gia'",
+        "ancora",
+        "sempre",
+        "mai",
+        "io",
+        "tu",
+        "lui",
+        "lei",
+        "noi",
+        "voi",
+        "loro",
+        "mi",
+        "ti",
+        "ci",
+        "vi",
+        "si",
+        "ne",
+        "questo",
+        "questa",
+        "questi",
+        "queste",
+        "quello",
+        "quella",
+        "quelli",
+        "quelle",
+        "suo",
+        "sua",
+        "mio",
+        "mia",
+        "tuo",
+        "tua",
+        "nostro",
+        "vostro",
+        "essere",
+        "sono",
+        "sei",
+        "siamo",
+        "siete",
+        "era",
+        "erano",
+        "stato",
+        "stata",
+        "avere",
+        "ho",
+        "hai",
+        "ha",
+        "abbiamo",
+        "avete",
+        "hanno",
+        "fare",
+        "fa",
+        "fanno",
+        "puo",
+        "puo'",
+        "deve",
+        "tutto",
+        "tutti",
+        "ogni",
+        "alcuni",
+        "nessuno",
+        "senza",
+        "sotto",
+        "sopra",
+        "verso",
+        "presso",
+        "dopo",
+        "prima",
+        "durante",
     }
 )
 
 # Suffissi/morfemi tipici dell'italiano (segnale aggiuntivo per la lingua).
 _ITALIAN_SUFFIXES = (
-    "zione", "zioni", "mente", "ita", "ita'", "aggio", "are", "ere", "ire",
-    "ato", "ata", "ati", "ate", "endo", "ando", "issimo", "issima", "evole",
+    "zione",
+    "zioni",
+    "mente",
+    "ita",
+    "ita'",
+    "aggio",
+    "are",
+    "ere",
+    "ire",
+    "ato",
+    "ata",
+    "ati",
+    "ate",
+    "endo",
+    "ando",
+    "issimo",
+    "issima",
+    "evole",
 )
 
 _ACCENTED = set("àèéìòùÀÈÉÌÒÙ")
@@ -149,7 +289,7 @@ def detect_language(text: str) -> str:
     if not text or not text.strip():
         return "unknown"
     try:
-        from langdetect import detect, DetectorFactory  # type: ignore
+        from langdetect import DetectorFactory, detect  # type: ignore
 
         DetectorFactory.seed = 0  # rende deterministico l'output
         return detect(text)
@@ -221,12 +361,7 @@ def quality_score(text: str) -> float:
     else:
         variety_factor = 0.0
 
-    score = (
-        0.35 * len_factor
-        + 0.20 * punct_factor
-        + 0.20 * upper_factor
-        + 0.25 * variety_factor
-    )
+    score = 0.35 * len_factor + 0.20 * punct_factor + 0.20 * upper_factor + 0.25 * variety_factor
     return max(0.0, min(1.0, score))
 
 

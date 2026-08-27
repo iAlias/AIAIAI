@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Tuple
+from typing import Any
 
 from italian_llm.config import get
 from italian_llm.logging_utils import get_logger
@@ -151,7 +151,7 @@ def get_bnb_config(cfg: dict):
         return None
 
     torch = require_torch()
-    transformers = require_transformers()
+    require_transformers()
     try:
         from transformers import BitsAndBytesConfig  # noqa: PLC0415
     except ImportError as exc:  # pragma: no cover
@@ -183,7 +183,7 @@ def get_bnb_config(cfg: dict):
     )
 
 
-def select_precision(cfg: dict, torch_mod) -> Tuple[bool, bool]:
+def select_precision(cfg: dict, torch_mod) -> tuple[bool, bool]:
     """Decide i flag (bf16, fp16) per il training in base a dtype e hardware.
 
     Su CPU (es. questa macchina di build) entrambi restano False -> fp32.
@@ -342,7 +342,7 @@ def apply_lora(model, cfg: dict):
     return model
 
 
-def count_trainable_params(model) -> Tuple[int, int]:
+def count_trainable_params(model) -> tuple[int, int]:
     """Conta (parametri_allenabili, parametri_totali) del modello."""
     trainable = 0
     total = 0

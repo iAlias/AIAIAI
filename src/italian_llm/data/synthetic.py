@@ -6,10 +6,10 @@ import hashlib
 import os
 from abc import ABC, abstractmethod
 
-from italian_llm.logging_utils import get_logger
 from italian_llm.data import cleaning
 from italian_llm.data.prompts import SYSTEM_DEFAULT, build_messages, render_plain
 from italian_llm.data.schema import SFTExample
+from italian_llm.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,7 @@ def _mock_qa(user: str, topic: str) -> str:
     ]
     intro = intros[_variant(user, len(intros))]
     return (
-        f"{intro} riguardo a \"{topic}\", la risposta dipende da alcuni elementi "
+        f'{intro} riguardo a "{topic}", la risposta dipende da alcuni elementi '
         "chiave, ma il nocciolo e' questo. "
         "Il fattore principale da considerare e' il contesto in cui si applica la "
         "domanda, perche' determina quale soluzione sia corretta. "
@@ -123,18 +123,18 @@ def _mock_coding(user: str, topic: str) -> str:
         "Ecco una soluzione in Python con una breve spiegazione.\n\n"
         "```python\n"
         "def soluzione(dati):\n"
-        "    \"\"\"Elabora i dati in ingresso e restituisce il risultato.\"\"\"\n"
+        '    """Elabora i dati in ingresso e restituisce il risultato."""\n'
         "    risultato = []\n"
         "    for elemento in dati:\n"
         "        # logica principale adattabile alla richiesta\n"
         "        risultato.append(elemento)\n"
         "    return risultato\n\n\n"
-        "if __name__ == \"__main__\":\n"
+        'if __name__ == "__main__":\n'
         "    print(soluzione([1, 2, 3]))\n"
         "```\n\n"
         "La funzione `soluzione` scorre gli elementi in ingresso e costruisce la "
         "lista di output; sostituisci il corpo del ciclo con la trasformazione "
-        f"richiesta per \"{topic}\". "
+        f'richiesta per "{topic}". '
         "Complessita' lineare O(n) e nessuna dipendenza esterna."
     )
 
@@ -178,7 +178,7 @@ def _mock_faq(user: str, topic: str) -> str:
 
 def _mock_admin(user: str, topic: str) -> str:
     return (
-        f"Per la pratica relativa a \"{topic}\" puoi procedere cosi':\n"
+        f'Per la pratica relativa a "{topic}" puoi procedere cosi\':\n'
         "1. Prepara i documenti richiesti (documento d'identita' e modulo "
         "compilato).\n"
         "2. Verifica le scadenze: di norma la domanda va presentata entro i "
@@ -277,9 +277,7 @@ class OpenAICompatTeacher(TeacherProvider):
         if self.base_url and self.api_key:
             self.name = f"openai_compat:{self.model}"
         else:
-            logger.warning(
-                "OpenAICompatTeacher: credenziali assenti, uso il fallback Mock."
-            )
+            logger.warning("OpenAICompatTeacher: credenziali assenti, uso il fallback Mock.")
 
     def generate(self, messages: list[dict], **kw) -> str:
         if not (self.base_url and self.api_key):
@@ -298,9 +296,7 @@ class OpenAICompatTeacher(TeacherProvider):
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             }
-            resp = requests.post(
-                url, json=payload, headers=headers, timeout=self.timeout
-            )
+            resp = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
             content = data["choices"][0]["message"]["content"]
@@ -320,9 +316,7 @@ class HFLocalTeacher(TeacherProvider):
     name = "hf_local"
 
     def __init__(self, model_name: str | None = None, **gen_kw):
-        self.model_name = model_name or os.environ.get(
-            "TEACHER_MODEL", "Qwen/Qwen2.5-7B-Instruct"
-        )
+        self.model_name = model_name or os.environ.get("TEACHER_MODEL", "Qwen/Qwen2.5-7B-Instruct")
         self.gen_kw = gen_kw
         self._pipe = None
         self._fallback = MockTeacher()
@@ -385,7 +379,8 @@ def synthesize_batch(tasks: list[dict], teacher: TeacherProvider, out_path: str)
     write_jsonl = None
     ensure_dir = None
     try:
-        from italian_llm.utils.io import write_jsonl as _wj, ensure_dir as _ed  # type: ignore
+        from italian_llm.utils.io import ensure_dir as _ed
+        from italian_llm.utils.io import write_jsonl as _wj  # type: ignore
 
         write_jsonl, ensure_dir = _wj, _ed
     except Exception:  # pragma: no cover - fallback robusto
@@ -454,7 +449,7 @@ def _similarity(a: str, b: str) -> float:
 
 def majority_rank(
     candidates: list[str],
-    teachers: "list[TeacherProvider] | None" = None,
+    teachers: list[TeacherProvider] | None = None,
 ) -> str:
     """Sceglie la risposta 'di consenso': quella piu' simile a tutte le altre.
 

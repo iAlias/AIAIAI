@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-import os, sys  # noqa: E401
+import os  # noqa: E401
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -75,7 +76,9 @@ def _abspath(path: str) -> str:
 
 def _seed_instructions(domains: list[str], n: int, rng: random.Random) -> list[tuple[str, str]]:
     """Produce n coppie (dominio, istruzione) campionando i prompt di seme."""
-    pool = [(d, p) for d in domains for p in _SEED_INSTRUCTIONS.get(d, _SEED_INSTRUCTIONS["general"])]
+    pool = [
+        (d, p) for d in domains for p in _SEED_INSTRUCTIONS.get(d, _SEED_INSTRUCTIONS["general"])
+    ]
     if not pool:
         pool = [("general", p) for p in _SEED_INSTRUCTIONS["general"]]
     out = []
@@ -107,21 +110,25 @@ def _synth_sft(teacher, tasks_meta, out_path, gen_kw) -> int:
     tasks = []
     for i, (domain, instr) in enumerate(tasks_meta):
         messages = build_messages(SYSTEM_DEFAULT, instr)
-        tasks.append({
-            "id": f"synth-sft-{i:06d}",
-            "domain": domain,
-            "difficulty": "medium",
-            "system": SYSTEM_DEFAULT,
-            "prompt": instr,
-            "user": instr,
-            "messages": messages,
-        })
+        tasks.append(
+            {
+                "id": f"synth-sft-{i:06d}",
+                "domain": domain,
+                "difficulty": "medium",
+                "system": SYSTEM_DEFAULT,
+                "prompt": instr,
+                "user": instr,
+                "messages": messages,
+            }
+        )
 
     n = 0
     try:
         n = int(synthesize_batch(tasks, teacher, out_path))
     except Exception as exc:
-        logger.warning("synthesize_batch non disponibile/fallita (%s): uso il percorso manuale.", exc)
+        logger.warning(
+            "synthesize_batch non disponibile/fallita (%s): uso il percorso manuale.", exc
+        )
 
     if n > 0 and os.path.isfile(out_path):
         logger.info("synthesize_batch ha prodotto %d esempi SFT.", n)
@@ -190,14 +197,20 @@ def _synth_preference(teacher, tasks_meta, out_path, gen_kw, num_candidates) -> 
         if not rejected or rejected == chosen:
             rejected = _degrade(chosen)  # garantisce una coppia con preferenza chiara
 
-        rows.append({
-            "id": f"pref-{i:06d}",
-            "domain": domain,
-            "prompt": instr,
-            "chosen": chosen,
-            "rejected": rejected,
-            "meta": {"teacher": teacher.name, "kind": "preference", "candidates": len(candidates)},
-        })
+        rows.append(
+            {
+                "id": f"pref-{i:06d}",
+                "domain": domain,
+                "prompt": instr,
+                "chosen": chosen,
+                "rejected": rejected,
+                "meta": {
+                    "teacher": teacher.name,
+                    "kind": "preference",
+                    "candidates": len(candidates),
+                },
+            }
+        )
     written = write_jsonl(out_path, rows)
     logger.info("Generate %d coppie di preferenza.", written)
     return written
@@ -220,8 +233,11 @@ def _synth_revision(teacher, tasks_meta, out_path, gen_kw) -> int:
         # Richiesta di revisione: la risposta migliorata diventa il 'chosen'.
         rev_msgs = list(messages) + [
             {"role": "assistant", "content": draft},
-            {"role": "user", "content": "Migliora la risposta precedente: rendila più completa, "
-                                        "chiara e corretta, mantenendo il tono diretto."},
+            {
+                "role": "user",
+                "content": "Migliora la risposta precedente: rendila più completa, "
+                "chiara e corretta, mantenendo il tono diretto.",
+            },
         ]
         try:
             revised = teacher.generate(rev_msgs, **gen_kw).strip()
@@ -231,22 +247,32 @@ def _synth_revision(teacher, tasks_meta, out_path, gen_kw) -> int:
             # Se il teacher è deterministico e ripete la bozza, costruiamo un miglioramento minimo.
             revised = draft + "\n\nIn sintesi, ecco i punti chiave da ricordare."
 
-        rows.append({
-            "id": f"rev-{i:06d}",
-            "domain": domain,
-            "prompt": instr,
-            "chosen": revised,
-            "rejected": draft,
-            "meta": {"teacher": teacher.name, "kind": "revision"},
-        })
+        rows.append(
+            {
+                "id": f"rev-{i:06d}",
+                "domain": domain,
+                "prompt": instr,
+                "chosen": revised,
+                "rejected": draft,
+                "meta": {"teacher": teacher.name, "kind": "revision"},
+            }
+        )
     written = write_jsonl(out_path, rows)
     logger.info("Generate %d coppie di revisione.", written)
     return written
 
 
-def synthesize(kind: str, provider: str | None, n: int, out_path: str, config_path: str,
-               domains: list[str] | None, seed: int, num_candidates: int,
-               prompts_path: str | None) -> int:
+def synthesize(
+    kind: str,
+    provider: str | None,
+    n: int,
+    out_path: str,
+    config_path: str,
+    domains: list[str] | None,
+    seed: int,
+    num_candidates: int,
+    prompts_path: str | None,
+) -> int:
     """Dispatcher principale: prepara teacher + task e instrada per tipo (sft|preference|revision)."""
     from italian_llm.data.synthetic import get_teacher
 
@@ -276,7 +302,9 @@ def synthesize(kind: str, provider: str | None, n: int, out_path: str, config_pa
     if not tasks_meta:
         tasks_meta = _seed_instructions(domains, n, rng)
 
-    logger.info("Sintesi '%s': teacher=%s task=%d out=%s", kind, teacher.name, len(tasks_meta), out_path)
+    logger.info(
+        "Sintesi '%s': teacher=%s task=%d out=%s", kind, teacher.name, len(tasks_meta), out_path
+    )
 
     out_abs = _abspath(out_path)
     if kind == "sft":
@@ -289,32 +317,56 @@ def synthesize(kind: str, provider: str | None, n: int, out_path: str, config_pa
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Sintetizza dati SFT/preferenze/revisione coi teacher.")
-    parser.add_argument("--kind", choices=["sft", "preference", "revision"], default="sft",
-                        help="Tipo di dati da generare (default: sft).")
-    parser.add_argument("--provider", default=None, help="Teacher: mock|openai_compat|hf_local (default: env/mock).")
+    parser = argparse.ArgumentParser(
+        description="Sintetizza dati SFT/preferenze/revisione coi teacher."
+    )
+    parser.add_argument(
+        "--kind",
+        choices=["sft", "preference", "revision"],
+        default="sft",
+        help="Tipo di dati da generare (default: sft).",
+    )
+    parser.add_argument(
+        "--provider", default=None, help="Teacher: mock|openai_compat|hf_local (default: env/mock)."
+    )
     parser.add_argument("--n", type=int, default=200, help="Numero di esempi da generare.")
     parser.add_argument("--out", default=None, help="Percorso JSONL di output (default per tipo).")
     parser.add_argument("--config", default=DEFAULT_CONFIG, help="YAML SFT (default: %(default)s).")
-    parser.add_argument("--domains", default=None, help="Domini separati da virgola (default da config).")
+    parser.add_argument(
+        "--domains", default=None, help="Domini separati da virgola (default da config)."
+    )
     parser.add_argument("--prompts", default=None, help="JSONL di prompt sorgente (opzionale).")
-    parser.add_argument("--num-candidates", type=int, default=2, help="Candidati per le preferenze (>=2).")
+    parser.add_argument(
+        "--num-candidates", type=int, default=2, help="Candidati per le preferenze (>=2)."
+    )
     parser.add_argument("--seed", type=int, default=42, help="Seme (default: 42).")
     parser.add_argument("--log-level", default="INFO", help="Livello di log (default: INFO).")
     args = parser.parse_args(argv)
 
     setup_logging(args.log_level)
 
-    out = args.out or {
-        "sft": "data/processed/synth_sft.jsonl",
-        "preference": "data/processed/synth_preference.jsonl",
-        "revision": "data/processed/synth_revision.jsonl",
-    }[args.kind]
+    out = (
+        args.out
+        or {
+            "sft": "data/processed/synth_sft.jsonl",
+            "preference": "data/processed/synth_preference.jsonl",
+            "revision": "data/processed/synth_revision.jsonl",
+        }[args.kind]
+    )
     domains = [d.strip() for d in args.domains.split(",") if d.strip()] if args.domains else None
 
     try:
-        n = synthesize(args.kind, args.provider, args.n, out, _abspath(args.config),
-                       domains, args.seed, args.num_candidates, args.prompts)
+        n = synthesize(
+            args.kind,
+            args.provider,
+            args.n,
+            out,
+            _abspath(args.config),
+            domains,
+            args.seed,
+            args.num_candidates,
+            args.prompts,
+        )
     except Exception as exc:
         logger.error("Errore nella sintesi dati: %s", exc)
         return 1

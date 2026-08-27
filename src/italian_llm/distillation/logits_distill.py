@@ -28,8 +28,8 @@ logger = get_logger(__name__)
 
 def _build_examples(train_path, tokenizer, max_seq_len, max_examples):
     """Tokenizza gli esempi SFT in input_ids/labels (causal LM)."""
-    from italian_llm.utils.io import read_jsonl
     from italian_llm.tokenizer_utils import format_chat
+    from italian_llm.utils.io import read_jsonl
 
     examples = []
     for rec in read_jsonl(train_path):
@@ -102,9 +102,11 @@ def run_logits_distill(cfg: dict) -> str:
     max_examples = get(cfg, "distill.max_examples")
     max_examples = int(max_examples) if max_examples else None
 
-    output_dir = (get(cfg, "distill.output_dir")
-                  or get(cfg, "train.output_dir")
-                  or os.path.join(get(cfg, "project.output_root", "outputs"), "logits_distill"))
+    output_dir = (
+        get(cfg, "distill.output_dir")
+        or get(cfg, "train.output_dir")
+        or os.path.join(get(cfg, "project.output_root", "outputs"), "logits_distill")
+    )
     ensure_dir(output_dir)
 
     train_path = get(cfg, "data.train_path")
@@ -116,13 +118,24 @@ def run_logits_distill(cfg: dict) -> str:
     if device == "cpu":
         torch_dtype = torch.float32  # bf16/fp16 instabili/lenti su CPU
     else:
-        torch_dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16,
-                       "float32": torch.float32}.get(str(dtype_str).lower(), torch.bfloat16)
+        torch_dtype = {
+            "bfloat16": torch.bfloat16,
+            "float16": torch.float16,
+            "float32": torch.float32,
+        }.get(str(dtype_str).lower(), torch.bfloat16)
 
-    logger.info("Logits distillation (SPERIMENTALE): teacher=%s student=%s device=%s T=%.2f alpha=%.2f",
-                teacher_name, student_name, device, temperature, alpha)
-    logger.warning("Ricorda: teacher e studente DEVONO condividere il tokenizer/vocabolario. "
-                   "La data distillation resta la modalita' consigliata.")
+    logger.info(
+        "Logits distillation (SPERIMENTALE): teacher=%s student=%s device=%s T=%.2f alpha=%.2f",
+        teacher_name,
+        student_name,
+        device,
+        temperature,
+        alpha,
+    )
+    logger.warning(
+        "Ricorda: teacher e studente DEVONO condividere il tokenizer/vocabolario. "
+        "La data distillation resta la modalita' consigliata."
+    )
 
     # ----- Tokenizer (dello studente; il teacher deve condividerlo) -----
     tokenizer = load_tokenizer(student_name)
@@ -131,14 +144,16 @@ def run_logits_distill(cfg: dict) -> str:
     # ----- Modelli -----
     logger.info("Carico teacher (eval, no-grad)...")
     teacher = AutoModelForCausalLM.from_pretrained(
-        teacher_name, torch_dtype=torch_dtype, trust_remote_code=True)
+        teacher_name, torch_dtype=torch_dtype, trust_remote_code=True
+    )
     teacher.to(device).eval()
     for p in teacher.parameters():
         p.requires_grad_(False)
 
     logger.info("Carico studente (train)...")
     student = AutoModelForCausalLM.from_pretrained(
-        student_name, torch_dtype=torch_dtype, trust_remote_code=True)
+        student_name, torch_dtype=torch_dtype, trust_remote_code=True
+    )
     student.to(device)
 
     # LoRA opzionale per ridurre i parametri allenabili (consigliato).
@@ -164,8 +179,13 @@ def run_logits_distill(cfg: dict) -> str:
     v_teacher = teacher.get_output_embeddings().weight.shape[0]
     v_kl = min(v_student, v_teacher)
     if v_student != v_teacher:
-        logger.warning("Vocabolari diversi (student=%d, teacher=%d): KL calcolata sui primi %d "
-                       "token. I risultati possono essere inaffidabili.", v_student, v_teacher, v_kl)
+        logger.warning(
+            "Vocabolari diversi (student=%d, teacher=%d): KL calcolata sui primi %d "
+            "token. I risultati possono essere inaffidabili.",
+            v_student,
+            v_teacher,
+            v_kl,
+        )
 
     # ----- Dati -----
     examples = _build_examples(train_path, tokenizer, max_seq_len, max_examples)
@@ -181,7 +201,7 @@ def run_logits_distill(cfg: dict) -> str:
     done = False
     while not done:
         for i in range(0, len(examples), batch_size):
-            batch = examples[i:i + batch_size]
+            batch = examples[i : i + batch_size]
             input_ids, attn, labels = _collate(batch, pad_id)
             input_ids = input_ids.to(device)
             attn = attn.to(device)
@@ -196,7 +216,7 @@ def run_logits_distill(cfg: dict) -> str:
             s_shift = s_logits[:, :-1, :]
             t_shift = t_logits[:, :-1, :]
             lbl_shift = labels[:, 1:]
-            valid = (lbl_shift != -100)
+            valid = lbl_shift != -100
 
             # --- Soft loss (KL sui logits temperati, vocab allineato) ---
             s_soft = F.log_softmax(s_shift[..., :v_kl] / T, dim=-1)
@@ -216,13 +236,21 @@ def run_logits_distill(cfg: dict) -> str:
 
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_((p for p in student.parameters() if p.requires_grad), 1.0)
+            torch.nn.utils.clip_grad_norm_(
+                (p for p in student.parameters() if p.requires_grad), 1.0
+            )
             optimizer.step()
 
             step += 1
             if step % max(1, int(get(cfg, "train.logging_steps", 5) or 5)) == 0:
-                logger.info("step %d/%d | loss %.4f (soft %.4f, hard %.4f)",
-                            step, max_steps, float(loss), float(soft_loss), float(hard_loss))
+                logger.info(
+                    "step %d/%d | loss %.4f (soft %.4f, hard %.4f)",
+                    step,
+                    max_steps,
+                    float(loss),
+                    float(soft_loss),
+                    float(hard_loss),
+                )
 
             if step >= max_steps:
                 done = True
@@ -233,7 +261,9 @@ def run_logits_distill(cfg: dict) -> str:
     try:
         student.save_pretrained(output_dir)
     except Exception as e:  # pragma: no cover
-        logger.warning("save_pretrained ha avuto un problema (%s); provo a salvare lo state_dict.", e)
+        logger.warning(
+            "save_pretrained ha avuto un problema (%s); provo a salvare lo state_dict.", e
+        )
         import torch as _torch
 
         _torch.save(student.state_dict(), os.path.join(output_dir, "student_state_dict.pt"))

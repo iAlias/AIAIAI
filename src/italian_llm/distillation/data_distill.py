@@ -91,8 +91,9 @@ def _load_or_build_tasks(cfg: dict):
         for i in range(per_domain):
             user = bank[i % len(bank)]
             tasks.append({"domain": domain, "user": user})
-    logger.info("Generati %d task di seed dalla banca interna (%d domini).",
-                len(tasks), len(domains))
+    logger.info(
+        "Generati %d task di seed dalla banca interna (%d domini).", len(tasks), len(domains)
+    )
     return tasks
 
 
@@ -130,11 +131,11 @@ def build_distill_dataset(cfg: dict) -> str:
       data.min_italian    -> soglia minima di italian_score (default 0.5)
       data.min_chars / data.max_chars -> limiti di lunghezza
     """
-    from italian_llm.data.synthetic import get_teacher, majority_rank
-    from italian_llm.data.schema import SFTExample
-    from italian_llm.data.cleaning import quality_score, italian_score, length_ok
+    from italian_llm.data.cleaning import italian_score, length_ok, quality_score
     from italian_llm.data.prompts import SYSTEM_DEFAULT
-    from italian_llm.utils.io import write_jsonl, ensure_dir
+    from italian_llm.data.schema import SFTExample
+    from italian_llm.data.synthetic import get_teacher, majority_rank
+    from italian_llm.utils.io import ensure_dir, write_jsonl
 
     # ----- Teacher(s) -----
     teacher_names = get(cfg, "teacher.names")
@@ -222,6 +223,11 @@ def build_distill_dataset(cfg: dict) -> str:
     ensure_dir(os.path.dirname(out_path) or ".")
     n = write_jsonl(out_path, rows)
 
-    logger.info("Distillazione dati completata: %d tenuti, %d scartati -> %s (%d righe).",
-                kept, skipped, out_path, n)
+    logger.info(
+        "Distillazione dati completata: %d tenuti, %d scartati -> %s (%d righe).",
+        kept,
+        skipped,
+        out_path,
+        n,
+    )
     return out_path

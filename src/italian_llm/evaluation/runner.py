@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 # Estrazione robusta dei campi dai record dell'eval set
 # ---------------------------------------------------------------------------
 
+
 def _extract_messages(rec: dict):
     """Ricava la lista di messaggi (per la generazione) da un record."""
     msgs = rec.get("messages")
@@ -83,6 +84,7 @@ def _extract_label(rec: dict):
 # Predittore: prima prova il Generator vero (lazy torch); in fallback usa il
 # MockTeacher, cosi' il runner gira end-to-end anche senza GPU/torch.
 # ---------------------------------------------------------------------------
+
 
 class _Predictor:
     """Wrapper che genera testo e degrada con grazia al mock se il modello fallisce."""
@@ -172,6 +174,7 @@ class _Predictor:
 # Aggregazione
 # ---------------------------------------------------------------------------
 
+
 def _percentile(values, q: float) -> float:
     """Percentile q (0..1) con interpolazione lineare, su lista gia' presente."""
     if not values:
@@ -242,15 +245,17 @@ def run_eval(cfg: dict) -> dict:
             latency = time.perf_counter() - t0
             latencies.append(latency)
 
-        rows.append({
-            "id": rec.get("id", i),
-            "domain": domain,
-            "label": label,
-            "instruction": instruction,
-            "reference": reference,
-            "prediction": pred,
-            "latency_s": round(latency, 4),
-        })
+        rows.append(
+            {
+                "id": rec.get("id", i),
+                "domain": domain,
+                "label": label,
+                "instruction": instruction,
+                "reference": reference,
+                "prediction": pred,
+                "latency_s": round(latency, 4),
+            }
+        )
 
     # gen_mode e' stato letto da init() prima di generare: se il Generator
     # falliva alla prima chiamata reale, predict() degrada a mock ma
@@ -265,7 +270,9 @@ def run_eval(cfg: dict) -> dict:
 
     adher, ital, rouge, verbos = [], [], [], []
     for r in rows:
-        ad = M.instruction_adherence(r["prediction"], ref=r["reference"], instruction=r["instruction"])
+        ad = M.instruction_adherence(
+            r["prediction"], ref=r["reference"], instruction=r["instruction"]
+        )
         it = M.italianity_score(r["prediction"])
         r["instruction_adherence"] = ad
         r["italianity"] = it
@@ -315,7 +322,7 @@ def run_eval(cfg: dict) -> dict:
         by_domain[d]["n"] += 1
         by_domain[d]["italianity"].append(r["italianity"])
         by_domain[d]["instruction_adherence"].append(r["instruction_adherence"])
-    for d, agg in by_domain.items():
+    for agg in by_domain.values():
         agg["italianity"] = round(_mean(agg["italianity"]), 4)
         agg["instruction_adherence"] = round(_mean(agg["instruction_adherence"]), 4)
 
