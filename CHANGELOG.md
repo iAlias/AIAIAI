@@ -4,6 +4,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Versioni: [Se
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-28
+
 ### Aggiunto
 - **Baseline coding reale**: `scripts/build_coding_eval_sets.py` scarica HumanEval
   (164, Python) e MultiPL-E humaneval-js (161, JavaScript) nello schema del repo
@@ -48,7 +50,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Versioni: [Se
   collaudo della pipeline.
 - `write_jsonl` scrive sempre `
 ` (su Windows produceva CRLF).
-- Riferimento a `docs/roadmap.md` (file inesistente) nel README.
 - **Makefile**: tutti i target puntavano a script/config inesistenti
   (`build_corpus.py`, `synthesize.py`, `run_eval.py`, `sft.yaml`, ...); ora
   invocano gli script e le config reali del repo.

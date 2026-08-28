@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "italian-llm"
-version = "0.1.0"
+version = "0.2.0"
 description = "LLM specializzato in italiano, end-to-end su base Qwen ~9B: CPT, SFT, preferenze (ORPO/DPO), distillazione, valutazione e serving."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -77,9 +77,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/iAlias/AIAIAI"
-Documentation = "https://github.com/iAlias/AIAIAI/tree/main/docs"
-Repository = "https://github.com/iAlias/AIAIAI"
+Homepage = "https://github.com/iAlias/italian-llm"
+Documentation = "https://github.com/iAlias/italian-llm/tree/main/docs"
+Repository = "https://github.com/iAlias/italian-llm"
 
 # ---------------------------------------------------------------------------
 # setuptools: src layout
