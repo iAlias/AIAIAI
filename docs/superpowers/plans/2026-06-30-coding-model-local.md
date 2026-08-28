@@ -977,7 +977,7 @@ Cell 2 (code):
 Cell 3 (code):
 ```python
 import os, sys
-REPO = "/kaggle/working/AIAIAI"   # adjust to your clone path
+REPO = "/kaggle/working/italian-llm"   # adjust to your clone path
 sys.path.insert(0, os.path.join(REPO, "src"))
 DATA = "/kaggle/input/coding-sft/coding_sft.jsonl"  # adjust to your uploaded dataset
 ```

@@ -4,6 +4,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Versioni: [Se
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-28
+
 ### Aggiunto
 - **Apprendimento continuo** (`docs/continuous-learning.md`): ogni interazione
   viene salvata in `data/memory/` e reiniettata via BM25 nelle domande successive
