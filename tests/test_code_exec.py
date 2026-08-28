@@ -33,7 +33,7 @@ def test_non_utf8_output():
 def test_javascript_passing_program():
     from italian_llm.evaluation.code_exec import run_javascript
 
-    r = run_javascript("if (1 + 1 !== 2) { process.exit(1); }\n")
+    r = run_javascript("if (1 + 1 !== 2) { process.exit(1); }\n", timeout=60.0)
     assert r["passed"] is True
     assert r["timed_out"] is False
 
@@ -41,7 +41,7 @@ def test_javascript_passing_program():
 def test_javascript_failing_program_reports_error():
     from italian_llm.evaluation.code_exec import run_javascript
 
-    r = run_javascript("throw new Error('boom');\n")
+    r = run_javascript("throw new Error('boom');\n", timeout=60.0)
     assert r["passed"] is False
     assert "boom" in r["error"]
 

@@ -92,7 +92,7 @@ def test_build_program_python_full_function_keeps_prompt_imports():
     prog = code_eval.build_program(problem, completion)
     assert prog.startswith("from typing import List")
     assert prog.count("def f(") == 2
-    assert code_eval.run_program(problem, completion)["passed"] is True
+    assert code_eval.run_program(problem, completion, timeout=60.0)["passed"] is True
 
 
 def test_evaluate_coding_runs_javascript_problems_with_node():
@@ -103,11 +103,12 @@ def test_evaluate_coding_runs_javascript_problems_with_node():
             return "```javascript\nfunction add(a, b){\n  return a + b;\n}\n```"
         return "```javascript\nfunction is_even(n){\n  return n % 2 === 0;\n}\n```"
 
-    results = code_eval.evaluate_coding(problems, predict)
-    assert all(r["passed"] for r in results)
+    results = code_eval.evaluate_coding(problems, predict, timeout=60.0)
+    failures = [(r["task_id"], r["error"]) for r in results if not r["passed"]]
+    assert not failures, f"node non ha eseguito le soluzioni corrette: {failures}"
 
 
 def test_evaluate_coding_javascript_wrong_solution_fails():
     problems = code_eval.load_problems(_FIX_JS)
-    results = code_eval.evaluate_coding(problems, lambda p: "  return null;\n}")
+    results = code_eval.evaluate_coding(problems, lambda p: "  return null;\n}", timeout=60.0)
     assert all(r["passed"] is False for r in results)
