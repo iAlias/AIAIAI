@@ -12,12 +12,15 @@ Lingua del prodotto: **italiano**. Lingua del codice: inglese. Identità del
 progetto: un assistente italiano **diretto, utile, poco verboso**, che **non
 moralizza** e **non rifiuta richieste lecite** (riduzione dell'over-refusal).
 
-> **Stato (luglio 2026).** Pipeline, test e lint verdi senza GPU. **Nessun peso
-> addestrato è ancora pubblicato**: i report in `outputs/` generati senza GPU
-> provengono da smoke run/mock (etichettati `generation_mode: mock`) e non
-> misurano un modello reale. L'unica valutazione con modello reale oggi
-> disponibile è la traccia coding via **Ollama**
-> (`configs/eval/eval_coding_ollama.yaml`).
+> **Stato (agosto 2026).** Pipeline, test e lint verdi senza GPU. **Nessun peso
+> addestrato in questo progetto è stato pubblicato**: i report generati senza un
+> modello reale sono smoke run (etichettati `generation_mode: mock`) e non
+> misurano nulla. L'unica parte con numeri veri è l'assistente di programmazione
+> locale servito da **Ollama** — vedi [Baseline misurata](#baseline-misurata):
+> **pass@1 0.628** su HumanEval (164 problemi Python) e **0.596** su
+> humaneval-js (161 problemi JavaScript) con `Qwen2.5-Coder-1.5B-Instruct`
+> quantizzato a 4 bit, su CPU. La traccia italiana (CPT/SFT/ORPO/distillazione)
+> è cablata e testata ma **non addestrata**: serve una GPU e un corpus reale.
 
 ---
 
@@ -25,17 +28,18 @@ moralizza** e **non rifiuta richieste lecite** (riduzione dell'over-refusal).
 
 1. [Panoramica](#panoramica)
 2. [Assistente di programmazione locale](#assistente-di-programmazione-locale)
-3. [Le due tracce: V1 pragmatica e V2 R&D](#le-due-tracce-v1-pragmatica-e-v2-rd)
-4. [Struttura del repository](#struttura-del-repository)
-5. [Quick start](#quick-start)
-6. [Profili hardware](#profili-hardware)
-7. [La pipeline in 7 step](#la-pipeline-in-7-step)
-8. [Cosa è pronto subito vs cosa è simulato ma cablato](#cosa-è-pronto-subito-vs-cosa-è-simulato-ma-cablato)
-9. [Mock teacher e fallback sintetico](#mock-teacher-e-fallback-sintetico)
-10. [Documentazione](#documentazione)
-11. [Roadmap a 30 giorni (sintesi)](#roadmap-a-30-giorni-sintesi)
-12. [Checklist finale](#checklist-finale)
-13. [Licenza](#licenza)
+3. [Baseline misurata](#baseline-misurata)
+4. [Le due tracce: V1 pragmatica e V2 R&D](#le-due-tracce-v1-pragmatica-e-v2-rd)
+5. [Struttura del repository](#struttura-del-repository)
+6. [Quick start](#quick-start)
+7. [Profili hardware](#profili-hardware)
+8. [La pipeline in 7 step](#la-pipeline-in-7-step)
+9. [Cosa è pronto subito vs cosa è simulato ma cablato](#cosa-è-pronto-subito-vs-cosa-è-simulato-ma-cablato)
+10. [Mock teacher e fallback sintetico](#mock-teacher-e-fallback-sintetico)
+11. [Documentazione](#documentazione)
+12. [Roadmap a 30 giorni (sintesi)](#roadmap-a-30-giorni-sintesi)
+13. [Checklist finale](#checklist-finale)
+14. [Licenza](#licenza)
 
 ---
 
@@ -105,6 +109,60 @@ python scripts/chat_learn.py --ollama-model coder-local
 ```
 
 Per dettagli completi, prompt, fine-tuning opzionale su Kaggle, e limiti onesti, vedi **[`docs/coding-model.md`](./docs/coding-model.md)**. Per il ciclo di **apprendimento continuo** (il modello impara da ogni domanda: memoria BM25 immediata + retrain periodico), vedi **[`docs/continuous-learning.md`](./docs/continuous-learning.md)**.
+
+---
+
+## Baseline misurata
+
+I primi numeri **reali** del progetto: nessun mock, nessuna stima.
+
+**Setup.** Modello `coder-local` = `Qwen2.5-Coder-1.5B-Instruct` quantizzato
+`q4_K_M` (986 MB) servito da Ollama; CPU Intel i7-10510U (4 core, 32 GB RAM),
+nessuna GPU; system prompt di coding del repo, `temperature: 0`,
+`max_new_tokens: 512`, **un solo tentativo per problema** (pass@1); il codice
+generato viene eseguito contro i test ufficiali in un sottoprocesso isolato con
+timeout di 8 s.
+
+| Benchmark | Problemi | Risolti | pass@1 |
+|---|---|---|---|
+| HumanEval (Python) | 164 | 103 | **0.628** |
+| MultiPL-E `humaneval-js` (JavaScript, test `node:assert`) | 161 | 96 | **0.596** |
+
+Report completi (con la risposta grezza di ogni task) in
+`outputs/eval/coding_report_humaneval.json` e
+`outputs/eval/coding_report_humaneval_js.json`.
+
+**Riproduzione** (~45 s per problema su questa CPU, quindi ~2 h per set):
+
+```bash
+python scripts/build_coding_eval_sets.py     # una volta: scarica i due set in data/eval/
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval_js.yaml
+```
+
+Le risposte grezze vengono scritte man mano in `outputs/eval/*_preds.jsonl`: una
+run interrotta riparte dai soli task mancanti con `--resume-from`, e una modifica
+dell'harness si ri-valuta con `--rescore-from` senza rigenerare nulla. Se Ollama
+non è raggiungibile la run **si interrompe** invece di produrre un `pass@1` privo
+di significato.
+
+**Come leggere questi numeri.** Sui fallimenti quasi tutto è logica sbagliata del
+modello, non attrito dell'harness: 47 `AssertionError` sui 61
+fallimenti Python e 55 sui 65 JavaScript, contro 1 solo errore di
+sintassi in Python e 5 in JavaScript, 6 casi Python che usano `math` senza
+importarlo e un unico timeout. È il profilo atteso per un 1.5B quantizzato —
+solido su funzioni
+brevi e autocontenute, inaffidabile appena il problema richiede più passaggi di
+ragionamento. La quantizzazione a 4 bit e il prompt in italiano costano qualche
+punto rispetto ai numeri pubblicati per il modello a piena precisione. Il
+confronto utile non è con i modelli frontier, che restano molto più avanti, ma
+con il costo: **0 €, nessun dato che lascia il PC, nessuna dipendenza da rete**.
+
+**Cosa questi numeri non dicono.** Non misurano C#, HTML e CSS (il set
+`data/eval/coding_csharp_web.sample.jsonl` è solo qualitativo, va ispezionato a
+mano), non misurano lavoro multi-file o agentico, e non riguardano nessun modello
+addestrato qui: `coder-local` è il modello pubblico quantizzato, usato come
+**baseline** contro cui confrontare un eventuale fine-tuning futuro.
 
 ---
 
@@ -443,6 +501,14 @@ La documentazione approfondita vive in `docs/`:
 Piano indicativo per portare il progetto da repo a modello spedibile (V1) e gettare
 le basi della V2. I piani di dettaglio sono in `docs/dataset-plan.md`,
 `docs/training-plan.md`, `docs/evaluation-plan.md` e `docs/distillation-plan.md`.
+
+> **Stato reale (agosto 2026).** Di questo piano è stata completata
+> l'infrastruttura della settimana 1 (data prep, config, mock teacher, test e CI
+> verdi) e **tutta la traccia coding locale**, che è l'unica con numeri misurati
+> ([Baseline misurata](#baseline-misurata)). Il training della traccia italiana —
+> settimane 2-4: SFT, ORPO, distillazione — **non è stato eseguito**: richiede
+> una GPU e un corpus reale, entrambi assenti su questo host. Leggi il repository
+> come infrastruttura completa e verificata, non come modello spedito.
 
 | Settimana | Obiettivo | Output |
 |-----------|-----------|--------|
