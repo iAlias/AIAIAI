@@ -80,6 +80,11 @@ def main(argv=None):
         "--report-path", default=None, help="override del percorso del report (preds derivati)"
     )
     p.add_argument(
+        "--allow-mock",
+        action="store_true",
+        help="accetta un report generato dal MockTeacher (di norma la run viene interrotta)",
+    )
+    p.add_argument(
         "--resume-from",
         default=None,
         help="preds JSONL di una run interrotta: i task gia' presenti non vengono rigenerati",
@@ -180,6 +185,18 @@ def main(argv=None):
     finally:
         preds_fh.close()
     results = [by_task[prob.get("task_id")] for prob in problems]
+
+    requested_real = bool(
+        get(cfg, "eval_coding.ollama_model") or get(cfg, "eval_coding.model_path")
+    )
+    if predictor.mode == "mock" and requested_real and not args.allow_mock:
+        raise SystemExit(
+            "Backend reale non disponibile: la generazione e' degradata al MockTeacher, "
+            f"quindi il pass@1 non misura nulla. Nessun report scritto (predizioni grezze in {preds_path}). "
+            "Verifica che Ollama sia in esecuzione (`ollama list`) e rilancia, eventualmente con "
+            "--resume-from per non rigenerare i task gia' completati; usa --allow-mock solo per "
+            "collaudare la pipeline."
+        )
 
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
     # predictor.mode e' riletto DOPO tutte le predizioni: se il backend scelto

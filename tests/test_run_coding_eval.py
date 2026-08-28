@@ -123,3 +123,32 @@ def test_resume_from_skips_tasks_already_in_preds(tmp_path, monkeypatch):
         json.loads(line) for line in (tmp_path / "preds.jsonl").read_text("utf-8").splitlines()
     ]
     assert [p["task_id"] for p in preds] == ["sample/0", "sample/1"]
+
+
+class _MockFallbackPredictor:
+    mode = "mock"
+
+
+def test_main_aborts_when_real_backend_degraded_to_mock(tmp_path, monkeypatch):
+    mod = _load_script()
+    monkeypatch.setattr(mod, "_make_predictor", lambda cfg: (_predict, _MockFallbackPredictor()))
+    cfg = _write_cfg(tmp_path)
+
+    try:
+        mod.main(["--config", cfg])
+    except SystemExit as exc:
+        assert "mock" in str(exc).lower()
+    else:
+        raise AssertionError("atteso SystemExit quando il backend reale degrada al mock")
+
+    assert not (tmp_path / "report.json").exists()
+
+
+def test_main_allow_mock_keeps_the_report(tmp_path, monkeypatch):
+    mod = _load_script()
+    monkeypatch.setattr(mod, "_make_predictor", lambda cfg: (_predict, _MockFallbackPredictor()))
+
+    report = mod.main(["--config", _write_cfg(tmp_path), "--allow-mock"])
+
+    assert report["generation_mode"] == "mock"
+    assert (tmp_path / "report.json").exists()
