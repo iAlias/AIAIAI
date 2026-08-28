@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "italian-llm"
-version = "0.2.0"
+version = "0.3.0"
 description = "LLM specializzato in italiano, end-to-end su base Qwen ~9B: CPT, SFT, preferenze (ORPO/DPO), distillazione, valutazione e serving."
 readme = "README.md"
 requires-python = ">=3.11"
