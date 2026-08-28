@@ -141,6 +141,18 @@ coding-eval: ## Eval pass@1 del coder (mock senza modello reale)
 coding-eval-ollama: ## Eval pass@1 del coder via Ollama (modello reale locale)
 	$(PY) scripts/run_coding_eval.py --config $(CFG_EVAL_CODING_OLLAMA)
 
+.PHONY: coding-eval-sets
+coding-eval-sets: ## Scarica/rigenera i set HumanEval (Python) e humaneval-js in data/eval
+	$(PY) scripts/build_coding_eval_sets.py
+
+.PHONY: coding-eval-humaneval
+coding-eval-humaneval: ## Baseline reale: HumanEval completo (164) via Ollama (~1.5-2.5 h su CPU)
+	$(PY) scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml
+
+.PHONY: coding-eval-humaneval-js
+coding-eval-humaneval-js: ## Baseline reale: humaneval-js (161) via Ollama + Node.js
+	$(PY) scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval_js.yaml
+
 # ---------------------------------------------------------------------------
 # Qualita' del codice
 # ---------------------------------------------------------------------------

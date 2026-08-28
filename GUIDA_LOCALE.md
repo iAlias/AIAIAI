@@ -60,15 +60,26 @@ python scripts/fim_complete.py --prefix "def somma(a, b):`n    " --suffix "`n" -
 ### E. Misurare il modello (numeri veri, non mock)
 
 ```powershell
+# smoke test veloce (2 problemi)
 python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama.yaml
-python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama.yaml --repair 3
+
+# baseline complete (~2 h ciascuna su questa CPU)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval_js.yaml
+
+# se una run si interrompe, riprendi senza rigenerare i task già fatti
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml `
+  --resume-from outputs/eval/coding_report_humaneval_preds.jsonl
 ```
 
-Report in `outputs/eval/coding_report.json`. Se leggi
-`generation_mode: "mock"` stai usando la config sbagliata (quella giusta è
-`eval_coding_ollama.yaml`) o Ollama è spento.
+Report in `outputs/eval/coding_report_humaneval*.json`; le risposte grezze in
+`outputs/eval/*_preds.jsonl`. Se Ollama è spento la run **si interrompe** con un
+messaggio chiaro invece di scrivere un `pass@1` senza significato.
 
 Tempi attesi su questa CPU: ~40–60 s a risposta con il modello 1.5B. È normale.
+
+I numeri già misurati (agosto 2026) sono nel README, sezione **Baseline
+misurata**: pass@1 0.628 su HumanEval e 0.596 su humaneval-js.
 
 ---
 
@@ -109,8 +120,11 @@ Dettagli e onestà sui limiti: `docs/continuous-learning.md`.
 2. **pre-commit** (una volta): `pip install pre-commit && pre-commit install && pre-commit autoupdate`.
 3. **Usa la chat con memoria** (1A) come strumento quotidiano per 2–3 settimane:
    accumula interazioni reali.
-4. **Baseline misurata**: lancia l'eval (1E) e annota il `pass_at_1` nel README —
-   è il primo numero vero del progetto.
+4. ~~**Baseline misurata**~~ — **fatta** (agosto 2026): pass@1 **0.628** su
+   HumanEval (164 problemi Python) e **0.596** su humaneval-js (161 problemi
+   JavaScript), con `coder-local` q4 su CPU. Dettagli e riproduzione nel README,
+   sezione *Baseline misurata*. È il metro di confronto per ogni fine-tuning
+   futuro: rilancia gli stessi due comandi dopo un retrain e confronta.
 5. **Primo retrain** (sezione 2) quando il log supera ~200 interazioni; rilancia
    l'eval e confronta col baseline: se migliora, hai la prova che il ciclo funziona.
 6. **Traccia italiana V1 (opzionale, richiede GPU)**: SFT del 7B su Kaggle T4 o

@@ -57,3 +57,16 @@ def test_chat_raises_ollama_error_on_malformed_response():
     with patch("urllib.request.urlopen", side_effect=fake_urlopen):
         with pytest.raises(OllamaError):
             chat("coder-local", [{"role": "user", "content": "ciao"}])
+
+
+def test_chat_passes_num_predict_when_max_tokens_given():
+    captured = {}
+
+    def fake_urlopen(req, timeout=None):
+        captured["body"] = json.loads(req.data.decode("utf-8"))
+        return _fake_response({"message": {"role": "assistant", "content": "ok"}})
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        chat("coder-local", [{"role": "user", "content": "ciao"}], max_tokens=256)
+
+    assert captured["body"]["options"]["num_predict"] == 256

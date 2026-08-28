@@ -1,0 +1,10 @@
+# configs/eval/eval_coding_ollama_humaneval_js.yaml
+# Baseline JavaScript: MultiPL-E humaneval-js (161 problemi, test node:assert),
+# generato via Ollama ed eseguito con Node.js (richiede `node` nel PATH).
+_base_: eval_coding_ollama.yaml
+
+eval_coding:
+  exec_set: data/eval/humaneval_js.jsonl
+  ollama_timeout: 600
+  output:
+    report_path: outputs/eval/coding_report_humaneval_js.json

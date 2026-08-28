@@ -23,17 +23,22 @@ che **non moralizza** e **non rifiuta richieste lecite** — la riduzione
 dell'over-refusal è una metrica di prima classe, non un dettaglio.
 
 > [!NOTE]
-> **Stato del progetto.** Pipeline, test e lint verdi senza GPU. **Nessun peso
-> addestrato è ancora pubblicato**: i report in `outputs/` generati senza GPU
-> provengono da smoke run e mock (etichettati `generation_mode: mock`) e non misurano
-> un modello reale. L'unica valutazione con modello reale oggi disponibile è la
-> traccia coding via **Ollama** (`configs/eval/eval_coding_ollama.yaml`).
+> **Stato del progetto.** Pipeline, test e lint verdi senza GPU. **Nessun peso è
+> stato addestrato in questo progetto**: i report generati senza un modello reale
+> sono smoke run (etichettati `generation_mode: mock`) e non misurano nulla. L'unica
+> parte con numeri veri è l'assistente di programmazione locale servito da
+> **Ollama** — vedi [Baseline misurata](#baseline-misurata): **pass@1 0.628** su
+> HumanEval (164 problemi Python) e **0.596** su `humaneval-js` (161 problemi
+> JavaScript), con `Qwen2.5-Coder-1.5B-Instruct` quantizzato a 4 bit, su CPU. La
+> traccia italiana (CPT / SFT / ORPO / distillazione) è cablata e testata ma **non
+> addestrata**: servono una GPU e un corpus reale.
 
 ---
 
 ## Indice
 
 - [Provalo in cinque minuti](#provalo-in-cinque-minuti)
+- [Baseline misurata](#baseline-misurata)
 - [Due modi di usare questo repo](#due-modi-di-usare-questo-repo)
 - [Addestra il tuo modello](#addestra-il-tuo-modello)
 - [Profili hardware](#profili-hardware)
@@ -90,6 +95,55 @@ fine-tuning opzionale su Kaggle e limiti onesti in
 [`docs/coding-model.md`](./docs/coding-model.md). Per il ciclo di **apprendimento
 continuo** — memoria BM25 subito, retrain QLoRA periodico poi — vedi
 [`docs/continuous-learning.md`](./docs/continuous-learning.md).
+
+---
+
+## Baseline misurata
+
+I primi numeri **reali** del progetto: nessun mock, nessuna stima.
+
+**Setup.** `coder-local` = `Qwen2.5-Coder-1.5B-Instruct` quantizzato `q4_K_M`
+(986 MB) servito da Ollama; CPU Intel i7-10510U (4 core, 32 GB RAM), nessuna GPU;
+system prompt di coding del repo, `temperature: 0`, `max_new_tokens: 512`, **un
+solo tentativo per problema** (pass@1); il codice generato viene eseguito contro i
+test ufficiali in un sottoprocesso isolato con timeout di 8 s.
+
+| Benchmark | Problemi | Risolti | pass@1 |
+|---|---|---|---|
+| HumanEval (Python) | 164 | 103 | **0.628** |
+| MultiPL-E `humaneval-js` (JavaScript, test `node:assert`) | 161 | 96 | **0.596** |
+
+Riproduzione — circa 45 s per problema su questa CPU, quindi ~2 h per set:
+
+```bash
+python scripts/build_coding_eval_sets.py   # una volta: scarica i due set in data/eval/
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval_js.yaml
+```
+
+Le risposte grezze vengono scritte man mano in `outputs/eval/*_preds.jsonl`: una
+run interrotta riparte dai soli task mancanti con `--resume-from`, e una modifica
+dell'harness si ri-valuta sulle risposte già salvate con `--rescore-from`, senza
+rigenerare nulla. Se Ollama non è raggiungibile la run **si interrompe** invece di
+scrivere un `pass@1` privo di significato. I risultati per-task stanno in
+[`docs/baselines/`](./docs/baselines/), così un fine-tuning futuro si confronta
+task per task e non solo sull'aggregato.
+
+**Come leggere questi numeri.** Quasi tutti i fallimenti sono logica sbagliata del
+modello, non attrito dell'harness: 47 `AssertionError` sui 61 fallimenti Python e
+55 sui 65 JavaScript, contro un solo errore di sintassi in Python, cinque in
+JavaScript e un unico timeout. È il profilo atteso per un 1.5B quantizzato: solido
+su funzioni brevi e autocontenute, inaffidabile appena il problema richiede più
+passaggi di ragionamento. La quantizzazione a 4 bit e il prompt non in inglese
+costano qualche punto rispetto ai numeri pubblicati a piena precisione. Il
+confronto utile non è con i modelli frontier, che restano molto più avanti, ma con
+il costo: **0 €, nessun dato che lascia il PC, nessuna dipendenza da rete**.
+
+**Cosa questi numeri non dicono.** Non misurano C#, HTML e CSS (il set
+`data/eval/coding_csharp_web.sample.jsonl` è qualitativo, va ispezionato a mano),
+non misurano lavoro multi-file o agentico e non riguardano nessun modello
+addestrato qui: `coder-local` è il modello pubblico quantizzato, usato come
+**baseline** che un eventuale fine-tuning deve battere.
 
 ---
 

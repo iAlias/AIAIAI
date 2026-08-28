@@ -22,6 +22,7 @@ def chat(
     *,
     host: str = "http://localhost:11434",
     temperature: float = 0.0,
+    max_tokens: int | None = None,
     timeout: float = 60.0,
 ) -> str:
     """Chiama /api/chat su un'istanza Ollama locale e ritorna il testo generato.
@@ -29,12 +30,15 @@ def chat(
     Solleva OllamaError se il server non e' raggiungibile o la risposta non
     ha la forma attesa ({"message": {"content": ...}}).
     """
+    options: dict = {"temperature": temperature}
+    if max_tokens is not None:
+        options["num_predict"] = max_tokens
     payload = json.dumps(
         {
             "model": model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": temperature},
+            "options": options,
         }
     ).encode("utf-8")
     req = urllib.request.Request(

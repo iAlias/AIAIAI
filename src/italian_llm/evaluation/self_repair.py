@@ -3,8 +3,7 @@ reinietta l'errore e ritenta. Trasforma un modello debole in uno piu' affidabile
 senza cambiare i pesi: piu' intelligenza dalla stessa rete.
 """
 
-from italian_llm.evaluation.code_eval import build_program, extract_code
-from italian_llm.evaluation.code_exec import run_python
+from italian_llm.evaluation.code_eval import extract_code, run_program
 
 __all__ = ["repair_prompt", "solve_with_repair"]
 
@@ -23,16 +22,17 @@ def repair_prompt(problem: dict, last_code: str, error: str) -> str:
 def solve_with_repair(
     problem: dict, predict_fn, max_attempts: int = 3, timeout: float = 8.0
 ) -> dict:
-    """Tenta fino a max_attempts; ritorna {passed, attempts, code}."""
+    """Tenta fino a max_attempts; ritorna {passed, attempts, code, raw}."""
     prompt = problem.get("prompt", "")
     last_code = ""
     last_error = ""
+    raw = ""
     for attempt in range(1, max_attempts + 1):
         raw = predict_fn(prompt)
         last_code = extract_code(raw)
-        outcome = run_python(build_program(problem, last_code), timeout=timeout)
+        outcome = run_program(problem, last_code, timeout=timeout)
         if outcome["passed"]:
-            return {"passed": True, "attempts": attempt, "code": last_code}
+            return {"passed": True, "attempts": attempt, "code": last_code, "raw": raw}
         last_error = outcome["error"] or "test falliti"
         prompt = repair_prompt(problem, last_code, last_error)
-    return {"passed": False, "attempts": max_attempts, "code": last_code}
+    return {"passed": False, "attempts": max_attempts, "code": last_code, "raw": raw}

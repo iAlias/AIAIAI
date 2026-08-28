@@ -28,3 +28,27 @@ def test_non_utf8_output():
     assert r["passed"] is True, "Exit code 0 should be treated as passed"
     assert r["timed_out"] is False
     assert r["error"] is None
+
+
+def test_javascript_passing_program():
+    from italian_llm.evaluation.code_exec import run_javascript
+
+    r = run_javascript("if (1 + 1 !== 2) { process.exit(1); }\n", timeout=60.0)
+    assert r["passed"] is True
+    assert r["timed_out"] is False
+
+
+def test_javascript_failing_program_reports_error():
+    from italian_llm.evaluation.code_exec import run_javascript
+
+    r = run_javascript("throw new Error('boom');\n", timeout=60.0)
+    assert r["passed"] is False
+    assert "boom" in r["error"]
+
+
+def test_javascript_timeout_program():
+    from italian_llm.evaluation.code_exec import run_javascript
+
+    r = run_javascript("while (true) {}\n", timeout=1.0)
+    assert r["passed"] is False
+    assert r["timed_out"] is True

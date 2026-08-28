@@ -4,6 +4,11 @@ Documento di lavoro: dove sta andando il progetto e cosa serve perché un giro
 completo possa dirsi concluso. Per lo stato attuale, vedi la nota in cima al
 [README](../README.md).
 
+Nota: la traccia italiana qui pianificata non è stata addestrata (serve una GPU e
+un corpus reale). La traccia coding locale è invece già misurata — pass@1 0.628 su
+HumanEval e 0.596 su `humaneval-js`, dettagli e risultati per-task in
+[`baselines/`](./baselines/).
+
 ---
 
 ## Roadmap a 30 giorni

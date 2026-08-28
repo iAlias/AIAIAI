@@ -129,15 +129,44 @@ Note: CPU-only inference is slow (~40–60 s per question with the 1.5B model). 
 
 ## Measure It: Evaluation
 
-After setup, measure the model's capabilities with the bundled evaluation suite:
+After setup, measure the model's capabilities with the bundled evaluation suite.
+Smoke run on the 2-problem fixture (mock if no model is available):
 
 ```bash
 python scripts/run_coding_eval.py --config configs/eval/eval_coding.yaml
 ```
 
-This **automatically evaluates** the executable benchmark:
+**Real baselines** (model served by Ollama; ~30–60 s per problem on a laptop CPU):
 
-- **Executable benchmark** (`pass@1`): generates Python code for HumanEval problems and executes them in a sandbox. Produces pass/fail results.
+```bash
+# once: download HumanEval (164, Python) and MultiPL-E humaneval-js (161, JavaScript)
+python scripts/build_coding_eval_sets.py            # -> data/eval/humaneval*.jsonl (versioned)
+
+# Python baseline (pass@1, executes tests in a sandboxed subprocess)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml
+
+# JavaScript baseline (needs `node` in PATH; tests use node:assert)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval_js.yaml
+
+# self-repair variant: feed the failing test back to the model, up to 3 attempts
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml --repair 3
+
+# re-score saved raw outputs without regenerating (after a harness change)
+python scripts/run_coding_eval.py --config configs/eval/eval_coding_ollama_humaneval.yaml \
+  --rescore-from outputs/eval/coding_report_humaneval_preds.jsonl
+```
+
+Makefile shortcuts: `make coding-eval-sets`, `make coding-eval-humaneval`, `make coding-eval-humaneval-js`.
+
+What the harness does:
+
+- **Executable benchmark** (`pass@1`): the model answers each prompt through the chat
+  template; the first fenced code block is extracted and composed with the tests
+  (Python: `prompt + completion + check(entry_point)`, keeping the prompt's imports
+  when the model returns the whole function; JavaScript: MultiPL-E self-invoking
+  tests) and executed in a sandboxed subprocess with a timeout. Every task's raw
+  model output is appended to `<report>_preds.jsonl` as it completes, with a
+  progress line in the log, so a long run can be monitored and later re-scored.
 
 For **qualitative inspection** (C#, JavaScript, HTML/CSS), the evaluation harness reads the fixture file (`data/eval/coding_csharp_web.sample.jsonl`) for reference only — it does **not** score these automatically. Instead, you inspect solutions manually:
 
@@ -147,31 +176,38 @@ For **qualitative inspection** (C#, JavaScript, HTML/CSS), the evaluation harnes
 
 This is intentional: executable languages (Python) have unambiguous pass/fail signals via tests; non-executable domains (web stack) require human judgment.
 
-**Automated output** goes to `outputs/eval/coding_report.json`:
+**Automated output** goes to the `report_path` of the config (e.g.
+`outputs/eval/coding_report_humaneval.json`), with the raw outputs next to it:
 
 ```json
 {
-  "generation_mode": "generator",
+  "generation_mode": "ollama",
   "model_path": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
-  "exec_set": "data/eval/humaneval.sample.jsonl",
+  "exec_set": "data/eval/humaneval.jsonl",
   "n_exec": 164,
   "pass_at_1": 0.35,
+  "preds_path": "outputs/eval/coding_report_humaneval_preds.jsonl",
+  "rescored_from": null,
   "results": [
     {
       "task_id": "HumanEval/0",
       "passed": true,
       "error": null,
+      "raw": "```python\nfrom typing import List\n...```",
       "attempts": null
     },
     {
       "task_id": "HumanEval/1",
       "passed": false,
       "error": "AssertionError: expected 2 got 1",
+      "raw": "...",
       "attempts": null
     }
   ]
 }
 ```
+
+Measured numbers for the local model are recorded in the README ("Baseline misurata").
 
 **Important caveat:** If no real model is deployed (`generation_mode: "mock"`), `pass_at_1` will be 0.0 and solutions are synthetic. This is fine for **validating the pipeline**; to get real metrics, set up a real model as above.
 
