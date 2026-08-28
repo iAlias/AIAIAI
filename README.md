@@ -441,7 +441,8 @@ La documentazione approfondita vive in `docs/`:
 ## Roadmap a 30 giorni (sintesi)
 
 Piano indicativo per portare il progetto da repo a modello spedibile (V1) e gettare
-le basi della V2. Dettaglio in `docs/roadmap.md`.
+le basi della V2. I piani di dettaglio sono in `docs/dataset-plan.md`,
+`docs/training-plan.md`, `docs/evaluation-plan.md` e `docs/distillation-plan.md`.
 
 | Settimana | Obiettivo | Output |
 |-----------|-----------|--------|

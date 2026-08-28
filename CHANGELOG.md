@@ -19,6 +19,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Versioni: [Se
   `--report-path`, `ollama_timeout` da config; `num_predict` passato a Ollama.
 - `build_coding_sft.py`: piu' file in `--in`, dedup delle istruzioni,
   `--source-type/--teacher-name`.
+- `run_coding_eval.py --resume-from`: una run interrotta riparte dai task
+  mancanti riusando le predizioni gia' salvate (le run su CPU durano ore).
+- **Baseline misurata** nel README: pass@1 reale del coder locale su HumanEval
+  (164, Python) e humaneval-js (161, JavaScript).
 - Dataset SFT coding scritto da un teacher forte (`data/curated/coding_teacher/`):
   domande/risposte in italiano su C#/.NET 8, JavaScript, HTML, CSS con taglio
   e-commerce.
@@ -38,8 +42,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Versioni: [Se
   `instruct-data`.
 
 ### Corretto
+- **La valutazione coding si interrompe se il backend reale degrada al
+  MockTeacher** invece di scrivere un report con un `pass@1` privo di
+  significato; `--allow-mock` ripristina il vecchio comportamento per il solo
+  collaudo della pipeline.
 - `write_jsonl` scrive sempre `
 ` (su Windows produceva CRLF).
+- Riferimento a `docs/roadmap.md` (file inesistente) nel README.
 - **Makefile**: tutti i target puntavano a script/config inesistenti
   (`build_corpus.py`, `synthesize.py`, `run_eval.py`, `sft.yaml`, ...); ora
   invocano gli script e le config reali del repo.
