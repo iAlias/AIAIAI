@@ -79,9 +79,16 @@ def main(argv=None):
     p.add_argument(
         "--report-path", default=None, help="override del percorso del report (preds derivati)"
     )
+    p.add_argument(
+        "--resume-from",
+        default=None,
+        help="preds JSONL di una run interrotta: i task gia' presenti non vengono rigenerati",
+    )
     args = p.parse_args(argv)
     if args.rescore_from and args.repair > 0:
         p.error("--rescore-from non e' compatibile con --repair")
+    if args.rescore_from and args.resume_from:
+        p.error("--rescore-from non e' compatibile con --resume-from")
     setup_logging(args.log_level)
     cfg = load_config(args.config)
 
@@ -104,11 +111,30 @@ def main(argv=None):
     logger.info("Predizioni in modalita' iniziale: %s", predictor.mode)
 
     preds_path = preds_path or (os.path.splitext(report_path)[0] + "_preds.jsonl")
+
+    already: dict = {}
+    if args.resume_from:
+        wanted = {prob.get("task_id") for prob in problems}
+        already = {
+            rec["task_id"]: {**rec, "attempts": rec.get("attempts")}
+            for rec in read_jsonl(args.resume_from)
+            if rec.get("task_id") in wanted
+        }
+        logger.info(
+            "Ripresa da %s: %d task gia' completati, %d da generare",
+            args.resume_from,
+            len(already),
+            len(problems) - len(already),
+        )
+    pending = [prob for prob in problems if prob.get("task_id") not in already]
+
     ensure_dir(os.path.dirname(preds_path) or ".")
     preds_fh = open(preds_path, "w", encoding="utf-8")
     progress = {"done": 0, "passed": 0, "t0": time.monotonic()}
+    by_task: dict = {}
 
     def _record(result: dict) -> None:
+        by_task[result["task_id"]] = result
         progress["done"] += 1
         progress["passed"] += int(bool(result["passed"]))
         preds_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -125,31 +151,35 @@ def main(argv=None):
         )
 
     try:
+        for prob in problems:
+            if prob.get("task_id") in already:
+                _record(already[prob.get("task_id")])
         if args.repair > 0:
             # Use self-repair loop
-            results = []
-            for prob in problems:
+            for prob in pending:
                 outcome = self_repair.solve_with_repair(
                     prob, predict_fn, max_attempts=args.repair, timeout=timeout
                 )
-                result = {
-                    "task_id": prob.get("task_id"),
-                    "passed": bool(outcome["passed"]),
-                    "error": None,
-                    "attempts": outcome["attempts"],
-                    "raw": outcome.get("raw", ""),
-                }
-                results.append(result)
-                _record(result)
+                _record(
+                    {
+                        "task_id": prob.get("task_id"),
+                        "passed": bool(outcome["passed"]),
+                        "error": None,
+                        "attempts": outcome["attempts"],
+                        "raw": outcome.get("raw", ""),
+                    }
+                )
         else:
-            # Use normal evaluation
-            base_results = code_eval.evaluate_coding(
-                problems, predict_fn, timeout=timeout, on_result=_record
+            # Use normal evaluation; attempts=None to match repair schema
+            code_eval.evaluate_coding(
+                pending,
+                predict_fn,
+                timeout=timeout,
+                on_result=lambda r: _record({**r, "attempts": None}),
             )
-            # Add attempts=None to match repair schema
-            results = [{**r, "attempts": None} for r in base_results]
     finally:
         preds_fh.close()
+    results = [by_task[prob.get("task_id")] for prob in problems]
 
     pass_at_1 = M.coding_passk([r["passed"] for r in results])
     # predictor.mode e' riletto DOPO tutte le predizioni: se il backend scelto
@@ -166,6 +196,7 @@ def main(argv=None):
         "pass_at_1": round(pass_at_1, 4),
         "preds_path": preds_path,
         "rescored_from": args.rescore_from,
+        "resumed_from": args.resume_from,
         "results": results,
     }
     ensure_dir(os.path.dirname(report_path) or ".")

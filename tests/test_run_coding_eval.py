@@ -96,3 +96,30 @@ def test_rescore_from_preds_skips_generation(tmp_path, monkeypatch):
     assert second["rescored_from"] == str(tmp_path / "preds.jsonl")
     assert report_path.exists()
     assert [r["raw"] for r in second["results"]] == [r["raw"] for r in first["results"]]
+
+
+def test_resume_from_skips_tasks_already_in_preds(tmp_path, monkeypatch):
+    mod = _load_script()
+    cfg = _write_cfg(tmp_path)
+    partial = tmp_path / "partial.jsonl"
+    old = {"task_id": "sample/0", "passed": False, "error": "x", "raw": "vecchio", "attempts": None}
+    partial.write_text(json.dumps(old) + "\n", encoding="utf-8")
+    calls = []
+
+    def _predict_counting(prompt):
+        calls.append(prompt)
+        return _predict(prompt)
+
+    monkeypatch.setattr(mod, "_make_predictor", lambda cfg: (_predict_counting, _FakePredictor()))
+
+    report = mod.main(["--config", cfg, "--resume-from", str(partial)])
+
+    assert len(calls) == 1 and "is_even" in calls[0]
+    by_id = {r["task_id"]: r for r in report["results"]}
+    assert by_id["sample/0"]["raw"] == "vecchio" and by_id["sample/0"]["passed"] is False
+    assert by_id["sample/1"]["passed"] is True
+    assert report["n_exec"] == 2
+    preds = [
+        json.loads(line) for line in (tmp_path / "preds.jsonl").read_text("utf-8").splitlines()
+    ]
+    assert [p["task_id"] for p in preds] == ["sample/0", "sample/1"]
